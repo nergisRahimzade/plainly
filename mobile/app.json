@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Plainly",
+    "slug": "plainly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Plainly uses your camera to take a photo of a document to explain.",
+        "NSPhotoLibraryUsageDescription": "Plainly needs access to your photos so you can upload a screenshot to explain."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Plainly needs access to your photos so you can upload a screenshot to explain.",
+          "cameraPermission": "Plainly uses your camera to take a photo of a document to explain."
+        }
+      ]
+    ]
+  }
+}
