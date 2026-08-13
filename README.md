@@ -5,36 +5,305 @@ letter, a form, a website — and Plainly explains it in plain English**, with c
 items, urgent red flags called out, and a searchable history that remembers how your
 uploads connect to each other.
 
-Built with React + TypeScript (web), Expo + React Native (mobile), Express, MongoDB Atlas
-(with Atlas Vector Search), and the Gemini API.
-
-## How it works
-
-1. You upload or paste a screenshot (web) or take/pick a photo (mobile).
-2. The backend sends the image to Gemini (`gemini-2.5-flash`) with a prompt asking it to
-   classify the document, explain it simply, and pull out action items / red flags — while
-   **never extracting or repeating account numbers, IDs, or other sensitive numbers**.
-3. The backend embeds a short summary of the document with `gemini-embedding-001` and runs
-   a MongoDB Atlas `$vectorSearch` against your previous uploads to find related ones.
-4. If related uploads are found, a second lightweight Gemini call writes a couple of
-   plain-English "this connects to your history" notes (e.g. "this is your 3rd bill from
-   this provider — the amount went up $12").
-5. Everything is stored in MongoDB Atlas and shown in a clean, color-coded card. You can
-   also semantically search your whole history (e.g. "that error from my bank app").
-
-Only the **derived text** (title, summary, explanation, action items, embeddings) is ever
-stored — the uploaded image itself is not persisted, and the AI is explicitly instructed to
-generalize rather than repeat any sensitive numbers it sees.
-
-## Project structure
-
 ```
-backend/    Express + TypeScript API, MongoDB Atlas + Gemini integration
-frontend/   React + TypeScript + Vite web app (Tailwind CSS v4)
+backend/    Express + TypeScript API — MongoDB Atlas + Gemini integration
+frontend/   React + TypeScript + Vite web app (Tailwind CSS v4)   ← primary client
 mobile/     Expo (React Native + TypeScript) app, same backend API
 ```
 
-## Prerequisites
+---
+
+## Table of contents
+
+1. [Tech stack](#tech-stack)
+2. [How it works — the two core flows](#how-it-works--the-two-core-flows)
+3. [Backend layer](#backend-layer)
+4. [Frontend layer](#frontend-layer)
+5. [AI layer (Gemini)](#ai-layer-gemini)
+6. [MongoDB layer — and why MongoDB specifically](#mongodb-layer--and-why-mongodb-specifically)
+7. [Privacy](#privacy)
+8. [What makes Plainly different](#what-makes-plainly-different)
+9. [Setup](#setup)
+
+---
+
+## Tech stack
+
+| Layer | Technology | Why |
+|---|---|---|
+| Web frontend | React 19 + TypeScript + Vite, Tailwind CSS v4 | Fast dev loop, no server needed, small bundle |
+| Mobile | Expo (React Native) + TypeScript | Single codebase for iOS/Android, shares API contract with web |
+| Backend | Node.js + Express + TypeScript | Thin, well-understood REST layer; keeps API keys off the client |
+| Database | MongoDB Atlas (incl. **Atlas Vector Search**) | One store for both structured document data *and* vector similarity search — see the dedicated section below |
+| AI | Google Gemini API (`gemini-3.6-flash` vision, `gemini-3.5-flash-lite` text, `gemini-embedding-001` embeddings) | Multimodal (reads the screenshot directly), structured JSON output, fast + cheap tiers available for the lighter text-only calls |
+| Markdown rendering | `react-markdown` / `react-native-markdown-display` | Gemini's explanation text uses light markdown (bullets, bold) which needs real rendering, not raw text |
+
+---
+
+## How it works — the two core flows
+
+### Flow 1 — Uploading a new screenshot
+
+```
+User selects/pastes an image (web) or takes/picks a photo (mobile)
+        │
+        ▼
+POST /api/documents  { imageBase64, mimeType }   (backend/src/routes/documents.ts)
+        │
+        ├─► 1. analyzeScreenshot() — sends the image to Gemini vision (gemini-3.6-flash)
+        │      with a strict prompt: classify doc type, write a title/summary/plain-English
+        │      explanation, extract action items + red flags, and NEVER copy sensitive
+        │      numbers (account/policy/SSN/card numbers etc.)
+        │
+        ├─► 2. embedText() — embeds "title + summary + docType + keyEntities" into a
+        │      768-dim vector via gemini-embedding-001
+        │
+        ├─► 3. $vectorSearch against this user's past documents (MongoDB Atlas), scoped by
+        │      userId, to find the most similar previous uploads (score ≥ 0.82 threshold)
+        │
+        ├─► 4. If related docs were found: findConnections() makes a second, lightweight
+        │      Gemini call (gemini-3.5-flash-lite, text-only — cheaper/faster than vision)
+        │      to write 1-3 plain-English notes like "this is your 3rd bill from this
+        │      provider — the amount went up $12"
+        │
+        └─► 5. The full document (analysis + embedding + connections + relatedTo ids) is
+               inserted into MongoDB. The response (without the embedding) is sent back and
+               rendered immediately as a DocumentCard.
+```
+
+The raw image is **never written to the database** — only Gemini's derived text output and
+its embedding vector are persisted. See [Privacy](#privacy).
+
+### Flow 2 — Searching past uploads
+
+```
+User types in the sidebar search box, pauses for 1 second (debounced)
+        │
+        ▼
+GET /api/documents/search?q=...   (backend/src/routes/documents.ts)
+        │
+        ├─► embedText(q) — embeds the search query itself into the same 768-dim vector space
+        │
+        ├─► $vectorSearch against this user's documents (top 20 candidates), scoped by userId
+        │
+        └─► Results below a similarity threshold (0.80) are dropped — $vectorSearch always
+               returns its nearest neighbors even when none are truly relevant, so this
+               threshold is what makes "search for something irrelevant" correctly show
+               "no matches" instead of random history items.
+```
+
+Because this is **semantic** (embedding-based) search rather than keyword matching, a query
+like *"that error from my bank app"* can match a document whose title never contained those
+exact words — it matches on meaning, not text overlap.
+
+---
+
+## Backend layer
+
+`backend/src/index.ts` sets up Express: CORS (configurable allow-list via `CORS_ORIGIN`),
+JSON body parsing (15 MB limit, to fit base64-encoded screenshots), a friendly root page and
+health check, and the documents router. It also handles `SIGINT`/`SIGTERM` to close the
+server's port promptly (this matters on Windows, where `tsx watch` restarts can otherwise
+race the OS and throw spurious `EADDRINUSE` errors).
+
+All document logic lives in `backend/src/routes/documents.ts`, mounted at `/api/documents`.
+Every route (except the two below) requires an `x-user-id` header — there's no login system,
+so the frontend/mobile app generates a random id on first launch and sends it on every
+request to scope a user's history to just their own uploads.
+
+| Method & path | Purpose | Why it exists |
+|---|---|---|
+| `GET /` | Human-friendly landing page confirming the API is up | So opening `localhost:8080` directly in a browser doesn't look like an error |
+| `GET /api/health` | Trivial `{ status: "ok" }` | Manual sanity check / future uptime monitoring |
+| `POST /api/documents` | Upload + analyze a screenshot (Flow 1 above) | The core feature — one endpoint owns the whole vision→embed→search→save pipeline server-side so the Gemini API key never has to reach the browser or phone |
+| `GET /api/documents` | List a user's history, newest first (max 100) | Powers the sidebar; deliberately lightweight (no related-doc resolution) since it can return many rows |
+| `GET /api/documents/search?q=` | Semantic search over history (Flow 2 above) | Needs its own endpoint because it runs a *query-time* embedding + vector search, a different operation from a plain list |
+| `GET /api/documents/:id` | Fetch one full document, with `relatedTo` ids resolved into titles/types/dates | The sidebar list only carries summary fields — opening a document needs the richer, resolved view |
+| `DELETE /api/documents/:id` | Delete a document | Direct requirement from the privacy goals: since Plainly retains derived data indefinitely, users need a way to remove any of it |
+
+All five document endpoints have been manually verified end-to-end against a live Atlas
+cluster and Gemini key (upload → list → fetch → semantic search → delete) and are working.
+
+---
+
+## Frontend layer
+
+The web app (`frontend/`) is a single-page React app with no router — it's simple enough
+that `App.tsx` just toggles between two views: the upload screen and the selected document.
+
+- **`lib/userId.ts`** — generates a random id on first visit and persists it in
+  `localStorage`, so the same browser always sees its own history without any account system.
+- **`lib/api.ts`** — thin fetch wrapper that attaches the `x-user-id` header to every request
+  and normalizes error messages from the backend's `{ error: string }` responses.
+- **`lib/docTypeMeta.ts`** — maps each `docType` (`bill`, `legal`, `error`, `form`,
+  `insurance`, `website`, `other`) to a label, icon, and color, so all the doc-type-specific
+  styling lives in one place instead of scattered `if` statements.
+- **`components/UploadZone.tsx`** — drag-and-drop, click-to-browse, and clipboard-paste image
+  upload, with a loading state while the backend is analyzing.
+- **`components/DocumentCard.tsx`** — renders the analyzed result: markdown explanation, a
+  bold red-flags callout, a checkable action-item list (checked items get struck through),
+  a bold "connected to your history" callout, and buttons to jump to related documents.
+- **`components/HistorySidebar.tsx`** — branding, "new screenshot" button, and the debounced
+  search box (fires 1 second after you stop typing, or instantly on Enter) plus the scrollable
+  history list, which shows "no matches" for irrelevant searches instead of the full history.
+- **`App.tsx`** — owns all state (document list, selected document, search mode, errors,
+  mobile sidebar open/closed) and wires the components to `lib/api.ts`.
+
+The mobile app (`mobile/`) mirrors this structure (`types.ts`, `lib/userId.ts` using
+`AsyncStorage` instead of `localStorage`, `lib/api.ts`, `lib/docTypeMeta.ts`) against the
+exact same backend API, so both clients stay in sync with zero backend changes.
+
+---
+
+## AI layer (Gemini)
+
+All Gemini calls live in `backend/src/gemini.ts`, so the API key and prompt engineering never
+leave the server.
+
+- **`analyzeScreenshot()`** — the vision call (`gemini-3.6-flash`). Takes the base64 image
+  inline, forces structured JSON output via `responseSchema` (so the backend never has to
+  parse free-form text), and sets `thinkingConfig.thinkingLevel = MINIMAL` — this is a
+  straightforward classify-and-summarize task that doesn't benefit from extended reasoning,
+  and skipping it cuts response time noticeably.
+- **`embedText()`** — turns text into a 768-dimension vector (`gemini-embedding-001`,
+  `SEMANTIC_SIMILARITY` task type) used both when storing a new document and when running a
+  search query. Using the *same* embedding model/dimensionality for both is what makes
+  `$vectorSearch` comparisons meaningful.
+- **`findConnections()`** — a second, separate call using `gemini-3.5-flash-lite` (a smaller,
+  faster, text-only model) rather than the vision model, since by this point the image itself
+  is irrelevant — only the already-extracted summaries of the new and related documents are
+  needed. Using the lighter model here was a deliberate speed optimization.
+- **The privacy rule** is a shared prompt fragment (`PRIVACY_RULE`) injected into *both* the
+  vision and connections prompts, explicitly forbidding the model from copying account
+  numbers, policy numbers, SSNs, card numbers, or similar identifiers into any output field.
+
+---
+
+## MongoDB layer — and why MongoDB specifically
+
+### What MongoDB stores
+
+```js
+{
+  _id: ObjectId,
+  userId: String,          // anonymous device/browser id, no login required
+  docType: String,         // "bill" | "legal" | "error" | "form" | "insurance" | "website" | "other"
+  title: String,
+  summary: String,
+  explanation: String,
+  actionItems: [String],
+  redFlags: [String],
+  keyEntities: [String],   // non-sensitive entities used for matching (e.g. company name)
+  connections: [String],   // plain-English notes linking this doc to related past uploads
+  relatedTo: [ObjectId],
+  embedding: [Number],     // 768-dim, gemini-embedding-001
+  createdAt: Date
+}
+```
+
+A vector index (`documents_vector_index`, cosine similarity, 768 dimensions, filterable by
+`userId`) sits on the `embedding` field — created once via `npm run setup-index`
+(`backend/src/scripts/setupVectorIndex.ts`).
+
+### Why MongoDB is used
+
+Plainly needs two very different kinds of queries against the *same* collection of
+documents:
+
+1. **Regular document reads** — "give me this user's history sorted by date," "give me this
+   one document by id." Simple, structured, exactly what any document/NoSQL database is
+   built for. Each Plainly document is naturally a flexible, self-contained JSON-like object
+   (varying array lengths for action items/red flags/connections, optional fields) — a good
+   fit for a schemaless document model rather than a rigid relational schema.
+2. **Semantic similarity search** — "find the 3 previous uploads most similar in *meaning* to
+   this new one," and "find past uploads most similar in meaning to this search query." This
+   requires a vector index and nearest-neighbor search over embeddings, not `WHERE` clauses.
+
+### Why it's crucial to the project
+
+This second capability is not a nice-to-have — it's the mechanism behind two of Plainly's
+headline features:
+
+- **"Connected to your history"** (e.g. spotting that this is your third bill from the same
+  provider and the amount went up) is only possible because the backend can efficiently find
+  semantically related past documents *at upload time*, scoped to just that user, out of
+  potentially thousands of stored documents.
+- **Semantic search** ("that error from my bank app") only works because the search query and
+  every stored document live in the same vector space and can be compared directly with
+  `$vectorSearch` — plain text/regex search would miss anything that doesn't share exact
+  keywords.
+
+Doing both of those *and* normal CRUD in one database, one connection pool, and one query
+language is what MongoDB Atlas Vector Search specifically enables.
+
+### Why not something else
+
+- **A relational database (Postgres, MySQL, etc.)** would handle the CRUD half fine, but
+  vector similarity search would need a bolt-on extension (e.g. `pgvector`) or a second,
+  separate system — meaning two databases to run, two connections to manage, and manual
+  joining of "structured record" results with "vector match" results in application code.
+- **A dedicated vector database (Pinecone, Weaviate, Qdrant, etc.)** would handle the
+  embedding search well, but then the actual document content (title, explanation, action
+  items, etc.) would need to live somewhere else entirely — every read of a document would
+  require a lookup in the vector store *and* a lookup in a second database, and keeping them
+  in sync on every insert/delete is an entirely avoidable class of bugs.
+- **MongoDB Atlas Vector Search** stores the document and its embedding as the same object
+  and lets a single `$vectorSearch` aggregation stage filter by a regular field (`userId`)
+  and return regular document fields in the same query — no second database, no manual
+  syncing, no join logic. For a project of this scope, that reduction in moving parts
+  outweighs anything a specialized vector database would offer.
+
+Note: `$vectorSearch` specifically requires an **Atlas-hosted** cluster (not a local/
+self-hosted `mongod`) — this is called out in [Setup](#setup) since it affects how you
+provision your database.
+
+---
+
+## Privacy
+
+- The prompt sent to Gemini explicitly forbids extracting or repeating account numbers,
+  policy numbers, SSNs, card numbers, or similar identifiers — the model is told to refer
+  to them generically instead.
+- The raw uploaded image is never written to the database, only the derived explanation
+  text and its embedding.
+- There's no login: a random id is generated on-device and used to scope your history, so
+  anyone can use the app immediately.
+- Any stored document can be permanently deleted at any time via the trash icon in history.
+
+---
+
+## What makes Plainly different
+
+Most "explain this screenshot/document" tools are stateless — you upload one image, get one
+explanation, and that's the end of the interaction. Plainly is built around the idea that
+confusing documents rarely arrive in isolation (bills recur monthly, legal notices follow up
+on earlier ones, forms reference previous submissions), so a single-shot explainer is missing
+half the picture. Specifically, Plainly adds three things that a plain "vision model + prompt"
+wrapper doesn't:
+
+1. **Memory that's actually used, not just stored.** Every upload is compared against your
+   *own* history via vector search at upload time, and if something relevant is found, the AI
+   is asked a second, targeted question — "how does this relate?" — producing insights like
+   "this is your 3rd bill from this provider and the amount increased" that a one-off analysis
+   could never produce.
+2. **Semantic history search**, not a keyword filter. You can search for what a document
+   *meant*, not what words it literally contained — useful for exactly the kind of documents
+   Plainly targets, where you often remember the gist ("that scary letter from the insurance
+   company") but not the exact wording.
+3. **Privacy as a first-class design constraint, not an afterthought.** The extraction prompt
+   itself is written to refuse sensitive identifiers, the raw image is discarded after
+   analysis, there's no account system tying uploads to a real identity, and every document
+   is user-deletable — rather than bolting privacy controls onto a system that stores
+   everything by default.
+
+The result is closer to a lightweight, persistent "personal document assistant" than a
+one-off OCR/summarization demo.
+
+---
+
+## Setup
+
+### Prerequisites
 
 - Node.js 20+
 - A [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) cluster (a free M0 cluster
@@ -42,7 +311,7 @@ mobile/     Expo (React Native + TypeScript) app, same backend API
   not support `$vectorSearch`)
 - A [Gemini API key](https://aistudio.google.com/apikey)
 
-## 1. Backend setup
+### 1. Backend setup
 
 ```bash
 cd backend
@@ -72,7 +341,7 @@ npm run dev
 
 The API listens on `http://localhost:8080` by default (`GET /api/health` to sanity check).
 
-## 2. Web frontend setup
+### 2. Web frontend setup
 
 ```bash
 cd frontend
@@ -83,7 +352,7 @@ npm run dev
 
 Open the printed local URL (default `http://localhost:5173`).
 
-## 3. Mobile app setup
+### 3. Mobile app setup
 
 ```bash
 cd mobile
@@ -104,36 +373,3 @@ npm run start
 ```
 
 Scan the QR code with Expo Go, or press `a`/`i` for an emulator.
-
-## MongoDB schema
-
-```js
-{
-  _id: ObjectId,
-  userId: String,          // anonymous device/browser id, no login required
-  docType: String,         // "bill" | "legal" | "error" | "form" | "insurance" | "website" | "other"
-  title: String,
-  summary: String,
-  explanation: String,
-  actionItems: [String],
-  redFlags: [String],
-  keyEntities: [String],   // non-sensitive entities used for matching (e.g. company name)
-  connections: [String],   // plain-English notes linking this doc to related past uploads
-  relatedTo: [ObjectId],
-  embedding: [Number],     // 768-dim, gemini-embedding-001
-  createdAt: Date
-}
-```
-
-Vector index (`documents_vector_index`) is on the `embedding` field (cosine similarity,
-768 dimensions), filterable by `userId`.
-
-## Privacy
-
-- The prompt sent to Gemini explicitly forbids extracting or repeating account numbers,
-  policy numbers, SSNs, card numbers, or similar identifiers — the model is told to refer
-  to them generically instead.
-- The raw uploaded image is never written to the database, only the derived explanation
-  text and its embedding.
-- There's no login: a random id is generated on-device and used to scope your history, so
-  anyone can use the app immediately.
