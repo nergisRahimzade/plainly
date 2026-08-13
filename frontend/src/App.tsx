@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck, AlertCircle, Menu, X } from "lucide-react";
+import { ShieldCheck, AlertCircle, Menu, X, PlayCircle } from "lucide-react";
 import UploadZone from "./components/UploadZone";
 import DocumentCard from "./components/DocumentCard";
 import HistorySidebar from "./components/HistorySidebar";
@@ -8,9 +8,24 @@ import {
   getDocument,
   listDocuments,
   searchDocuments,
+  seedExampleDocuments,
   uploadDocument,
 } from "./lib/api";
+import {
+  getDemoDocument,
+  getDemoDocuments,
+  removeDemoDocument,
+  searchDemoDocuments,
+  simulateUpload,
+} from "./lib/demoStore";
+import { getStoredExampleIds, setStoredExampleIds } from "./lib/exampleDocs";
 import type { PlainlyDocumentPublic } from "./types";
+
+// Live calls that fail (wifi drops, backend down, API quota hit, etc.) should
+// never leave a presenter/user staring at a dead error screen — they silently
+// fall back into demo mode instead, so the app always has something to show.
+const UNREACHABLE_MESSAGE =
+  "We couldn't reach the live server, so you're viewing sample data instead. Nothing below is real.";
 
 function App() {
   const [documents, setDocuments] = useState<PlainlyDocumentPublic[]>([]);
@@ -19,24 +34,67 @@ function App() {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [demoReason, setDemoReason] = useState<string | null>(null);
+  const [isAddingExamples, setIsAddingExamples] = useState(false);
+
+  const enterDemoMode = (reason: string | null) => {
+    setIsDemoMode(true);
+    setDemoReason(reason);
+    setError(null);
+    setIsSearchActive(false);
+    setDocuments(getDemoDocuments());
+    setSelectedDoc(null);
+  };
 
   useEffect(() => {
     listDocuments()
       .then(setDocuments)
-      .catch((err) => setError(err.message));
+      .catch(() => enterDemoMode(UNREACHABLE_MESSAGE));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleToggleDemoMode = () => {
+    if (isDemoMode) {
+      setIsDemoMode(false);
+      setDemoReason(null);
+      setSelectedDoc(null);
+      setError(null);
+      listDocuments()
+        .then(setDocuments)
+        .catch(() => enterDemoMode(UNREACHABLE_MESSAGE));
+    } else {
+      enterDemoMode(null);
+    }
+  };
 
   const handleSelectImage = async (imageBase64: string, mimeType: string) => {
     setError(null);
     setIsAnalyzing(true);
     try {
+      if (isDemoMode) {
+        const doc = await simulateUpload();
+        setSelectedDoc(doc);
+        setDocuments((prev) => [doc, ...prev]);
+        setIsSearchActive(false);
+        setIsSidebarOpen(false);
+        return;
+      }
       const doc = await uploadDocument(imageBase64, mimeType);
       setSelectedDoc(doc);
       setDocuments((prev) => [doc, ...prev]);
       setIsSearchActive(false);
       setIsSidebarOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      // Live analysis failed — fall back to a canned result rather than a dead end.
+      enterDemoMode("Live analysis is unavailable right now, so here's a sample result instead.");
+      try {
+        const doc = await simulateUpload();
+        setSelectedDoc(doc);
+        setDocuments((prev) => [doc, ...prev]);
+      } catch {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -45,17 +103,28 @@ function App() {
   const handleSelectDoc = async (id: string) => {
     setError(null);
     setIsSidebarOpen(false);
+    if (isDemoMode) {
+      const doc = getDemoDocument(id);
+      if (doc) setSelectedDoc(doc);
+      return;
+    }
     const cached = documents.find((d) => d.id === id);
     if (cached) setSelectedDoc(cached);
     try {
       const full = await getDocument(id);
       setSelectedDoc(full);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load that document.");
+      if (!cached) setError(err instanceof Error ? err.message : "Could not load that document.");
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (isDemoMode) {
+      removeDemoDocument(id);
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
+      if (selectedDoc?.id === id) setSelectedDoc(null);
+      return;
+    }
     try {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
@@ -68,20 +137,57 @@ function App() {
   const handleSearch = async (query: string) => {
     setError(null);
     setIsSearchActive(true);
+    if (isDemoMode) {
+      setDocuments(searchDemoDocuments(query));
+      return;
+    }
     try {
       const results = await searchDocuments(query);
       setDocuments(results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed.");
+    } catch {
+      // Search unreachable — fall back to a simple local text match over the
+      // demo dataset so search still visibly works during a live demo.
+      enterDemoMode("Live search is unavailable right now, so you're viewing sample data.");
+      setDocuments(searchDemoDocuments(query));
+      setIsSearchActive(true);
     }
   };
 
   const handleClearSearch = async () => {
     setIsSearchActive(false);
+    if (isDemoMode) {
+      setDocuments(getDemoDocuments());
+      return;
+    }
     try {
       setDocuments(await listDocuments());
     } catch {
       // keep existing list on failure
+    }
+  };
+
+  // Populates the current user's REAL history with curated example documents
+  // via the real API (real Mongo records, real embeddings) — for demoing the
+  // app when everything is working, as opposed to the offline fallback demo.
+  const handleAddExampleDocuments = async () => {
+    setError(null);
+    setIsAddingExamples(true);
+    try {
+      const previousIds = getStoredExampleIds();
+      if (previousIds.length > 0) {
+        await Promise.all(previousIds.map((id) => deleteDocument(id).catch(() => {})));
+      }
+      const created = await seedExampleDocuments();
+      setStoredExampleIds(created.map((d) => d.id));
+      setDocuments(await listDocuments());
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not add example documents. Make sure the backend and MongoDB are reachable."
+      );
+    } finally {
+      setIsAddingExamples(false);
     }
   };
 
@@ -105,6 +211,10 @@ function App() {
           onClearSearch={handleClearSearch}
           isSearchActive={isSearchActive}
           onNewUpload={() => setSelectedDoc(null)}
+          isDemoMode={isDemoMode}
+          onToggleDemoMode={handleToggleDemoMode}
+          onAddExamples={handleAddExampleDocuments}
+          isAddingExamples={isAddingExamples}
         />
       </div>
 
@@ -117,6 +227,22 @@ function App() {
             {isSidebarOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
             History
           </button>
+
+          {isDemoMode && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-hairline bg-accent-soft px-4 py-3 text-sm text-accent">
+              <span className="flex items-center gap-2">
+                <PlayCircle className="h-4 w-4 shrink-0" />
+                {demoReason ??
+                  "Demo mode — everything below is a sample. No live calls are being made."}
+              </span>
+              <button
+                onClick={handleToggleDemoMode}
+                className="shrink-0 font-semibold underline decoration-2 underline-offset-2 hover:text-ink"
+              >
+                Exit demo
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 flex items-center gap-2 rounded-xl border border-brick/25 bg-brick-soft px-4 py-3 text-sm font-medium text-brick">

@@ -5,6 +5,7 @@ import {
   VECTOR_INDEX_NAME,
 } from "../db.js";
 import { analyzeScreenshot, embedText, findConnections } from "../gemini.js";
+import { SEED_DOCUMENTS } from "../seedData.js";
 import type { PlainlyDocument, PlainlyDocumentPublic, RelatedDocRef } from "../types.js";
 
 export const documentsRouter = Router();
@@ -142,6 +143,71 @@ documentsRouter.post("/", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Error analyzing document:", err);
     res.status(500).json({ error: "Failed to analyze the screenshot. Please try again." });
+  }
+});
+
+// POST /api/documents/seed - populate the current user's real history with a
+// curated set of example documents (real Mongo records + real embeddings),
+// for demoing the working app rather than for the offline fallback demo mode.
+documentsRouter.post("/seed", async (req: Request, res: Response) => {
+  try {
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
+    const collection = await getDocumentsCollection();
+    const insertedByTitle = new Map<
+      string,
+      { id: ObjectId; title: string; docType: PlainlyDocument["docType"]; createdAt: Date }
+    >();
+    const created: PlainlyDocumentPublic[] = [];
+
+    for (const seed of SEED_DOCUMENTS) {
+      const embeddingSourceText = [seed.title, seed.summary, seed.docType, ...seed.keyEntities].join(". ");
+      const embedding = await embedText(embeddingSourceText);
+
+      const relatedRefs: RelatedDocRef[] = [];
+      const relatedTo: string[] = [];
+      const related = seed.relatedToTitle ? insertedByTitle.get(seed.relatedToTitle) : undefined;
+      if (related) {
+        relatedTo.push(related.id.toString());
+        relatedRefs.push({
+          id: related.id.toString(),
+          title: related.title,
+          docType: related.docType,
+          createdAt: related.createdAt.toISOString(),
+        });
+      }
+
+      const createdAt = new Date(Date.now() - seed.daysAgo * 24 * 60 * 60 * 1000);
+      const doc: PlainlyDocument = {
+        userId,
+        docType: seed.docType,
+        title: seed.title,
+        summary: seed.summary,
+        explanation: seed.explanation,
+        actionItems: seed.actionItems,
+        redFlags: seed.redFlags,
+        keyEntities: seed.keyEntities,
+        connections: seed.connections,
+        relatedTo,
+        embedding,
+        createdAt,
+      };
+
+      const insertResult = await collection.insertOne(doc);
+      insertedByTitle.set(seed.title, {
+        id: insertResult.insertedId,
+        title: seed.title,
+        docType: seed.docType,
+        createdAt,
+      });
+      created.push(toPublic({ ...doc, _id: insertResult.insertedId }, relatedRefs));
+    }
+
+    res.status(201).json(created);
+  } catch (err) {
+    console.error("Error seeding example documents:", err);
+    res.status(500).json({ error: "Failed to add example documents." });
   }
 });
 
