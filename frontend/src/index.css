@@ -3,6 +3,26 @@
 
 @theme {
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+
+  /* Warm, minimal palette */
+  --color-paper: #faf8f5;
+  --color-surface: #ffffff;
+  --color-ink: #221f1c;
+  --color-ink-soft: #6f6a62;
+  --color-ink-faint: #a39d92;
+  --color-hairline: #e7e2d9;
+  --color-hairline-soft: #f0ece4;
+
+  --color-accent: #3d3153;
+  --color-accent-soft: #efeaf2;
+  --color-accent-hairline: #ddd3e4;
+
+  --color-brick: #8c3a3a;
+  --color-brick-soft: #f5e9e7;
+
+  --color-ochre: #8a6a2f;
+  --color-ochre-soft: #f6f0e1;
 }
 
 html,
@@ -13,13 +33,18 @@ body,
 
 body {
   margin: 0;
-  background-color: #f6f5fb;
-  color: #1f2230;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
 }
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 ::-webkit-scrollbar {
@@ -28,14 +53,14 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #d6d3e6;
+  background-color: var(--color-hairline);
   border-radius: 9999px;
 }
 
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -44,5 +69,5 @@ body {
 }
 
 .animate-fade-in {
-  animation: fade-in 0.25s ease-out;
+  animation: fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }

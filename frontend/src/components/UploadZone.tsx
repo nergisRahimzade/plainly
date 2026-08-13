@@ -51,9 +51,13 @@ export default function UploadZone({ onSelectImage, isAnalyzing }: UploadZonePro
         if (item) handleFile(item.getAsFile());
       }}
       onClick={() => !isAnalyzing && inputRef.current?.click()}
-      className={`group relative flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed p-10 text-center transition-colors cursor-pointer
-        ${isDragging ? "border-violet-500 bg-violet-50" : "border-violet-200 bg-white hover:border-violet-400 hover:bg-violet-50/50"}
-        ${isAnalyzing ? "pointer-events-none opacity-70" : ""}`}
+      className={`group relative flex cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border px-8 py-16 text-center transition-all duration-300
+        ${
+          isDragging
+            ? "border-accent/50 bg-accent-soft"
+            : "border-dashed border-hairline bg-surface hover:border-accent-hairline hover:bg-accent-soft/40"
+        }
+        ${isAnalyzing ? "pointer-events-none border-solid" : ""}`}
     >
       <input
         ref={inputRef}
@@ -65,26 +69,30 @@ export default function UploadZone({ onSelectImage, isAnalyzing }: UploadZonePro
 
       {isAnalyzing ? (
         <>
-          <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
-          <p className="text-lg font-medium text-slate-700">Reading your screenshot…</p>
-          <p className="text-sm text-slate-500">Plainly is figuring out what this means.</p>
+          <Loader2 className="h-7 w-7 animate-spin text-accent" strokeWidth={1.5} />
+          <div>
+            <p className="font-serif text-lg text-ink">Reading your screenshot</p>
+            <p className="mt-1 text-sm text-ink-faint">This usually takes a few seconds.</p>
+          </div>
         </>
       ) : (
         <>
-          <div className="rounded-full bg-violet-100 p-4 transition-transform group-hover:scale-105">
-            <UploadCloud className="h-8 w-8 text-violet-600" />
+          <div className="rounded-full border border-hairline bg-paper p-3.5 transition-colors duration-300 group-hover:border-accent-hairline">
+            <UploadCloud className="h-5 w-5 text-ink-soft transition-colors group-hover:text-accent" strokeWidth={1.5} />
           </div>
-          <p className="text-lg font-semibold text-slate-800">
-            Drop a screenshot here, click to browse, or paste it (Ctrl+V)
-          </p>
-          <p className="text-sm text-slate-500">
-            Bills, error messages, legal docs, insurance letters, forms — anything confusing.
-          </p>
+          <div>
+            <p className="text-[15px] font-medium text-ink">
+              Drop a screenshot here, click to browse, or paste it
+            </p>
+            <p className="mt-1.5 text-sm text-ink-faint">
+              Bills, error messages, legal docs, insurance letters, forms — anything confusing.
+            </p>
+          </div>
         </>
       )}
 
       {error && (
-        <p className="flex items-center gap-1.5 text-sm font-medium text-rose-600">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-brick">
           <ImageOff className="h-4 w-4" /> {error}
         </p>
       )}

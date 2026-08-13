@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import type { VisionAnalysis } from "./types.js";
 import { EMBEDDING_DIMENSIONS } from "./db.js";
 
@@ -10,7 +10,8 @@ if (!GEMINI_API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-const VISION_MODEL = "gemini-2.5-flash";
+const VISION_MODEL = "gemini-3.6-flash";
+const FAST_TEXT_MODEL = "gemini-3.5-flash-lite";
 const EMBEDDING_MODEL = "gemini-embedding-001";
 
 const PRIVACY_RULE = `
@@ -101,6 +102,9 @@ export async function analyzeScreenshot(params: {
     config: {
       responseMimeType: "application/json",
       responseSchema: analysisResponseSchema,
+      // This is a straightforward classify-and-explain task, not something that
+      // benefits from extended reasoning - minimizing it cuts response time significantly.
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
     },
   });
 
@@ -178,11 +182,12 @@ meaningful to say, return an empty array.
 `.trim();
 
   const response = await ai.models.generateContent({
-    model: VISION_MODEL,
+    model: FAST_TEXT_MODEL,
     contents: prompt,
     config: {
       responseMimeType: "application/json",
       responseSchema: connectionsResponseSchema,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
     },
   });
 

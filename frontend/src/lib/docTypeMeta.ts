@@ -13,52 +13,54 @@ import type { DocType } from "../types";
 export interface DocTypeMeta {
   label: string;
   icon: LucideIcon;
+  /** Deep, muted color used for icon glyphs and small accents. */
+  color: string;
+  /** Tailwind classes for a subtle outline badge in this doc type's color. */
   badgeClass: string;
-  headerClass: string;
 }
 
 const META: Record<DocType, DocTypeMeta> = {
   bill: {
     label: "Bill",
     icon: Receipt,
-    badgeClass: "bg-emerald-100 text-emerald-700",
-    headerClass: "text-emerald-700",
+    color: "#2f6b5e",
+    badgeClass: "text-[#2f6b5e] border-[#2f6b5e]/25 bg-[#2f6b5e]/[0.06]",
   },
   legal: {
     label: "Legal Document",
     icon: Scale,
-    badgeClass: "bg-indigo-100 text-indigo-700",
-    headerClass: "text-indigo-700",
+    color: "#35415c",
+    badgeClass: "text-[#35415c] border-[#35415c]/25 bg-[#35415c]/[0.06]",
   },
   error: {
     label: "Error Message",
     icon: AlertTriangle,
-    badgeClass: "bg-rose-100 text-rose-700",
-    headerClass: "text-rose-700",
+    color: "#8c3a3a",
+    badgeClass: "text-[#8c3a3a] border-[#8c3a3a]/25 bg-[#8c3a3a]/[0.06]",
   },
   form: {
     label: "Form",
     icon: ClipboardList,
-    badgeClass: "bg-amber-100 text-amber-700",
-    headerClass: "text-amber-700",
+    color: "#8a6a2f",
+    badgeClass: "text-[#8a6a2f] border-[#8a6a2f]/25 bg-[#8a6a2f]/[0.06]",
   },
   insurance: {
     label: "Insurance",
     icon: ShieldCheck,
-    badgeClass: "bg-sky-100 text-sky-700",
-    headerClass: "text-sky-700",
+    color: "#3b5570",
+    badgeClass: "text-[#3b5570] border-[#3b5570]/25 bg-[#3b5570]/[0.06]",
   },
   website: {
     label: "Website",
     icon: Globe,
-    badgeClass: "bg-fuchsia-100 text-fuchsia-700",
-    headerClass: "text-fuchsia-700",
+    color: "#6b4a6b",
+    badgeClass: "text-[#6b4a6b] border-[#6b4a6b]/25 bg-[#6b4a6b]/[0.06]",
   },
   other: {
     label: "Document",
     icon: FileQuestion,
-    badgeClass: "bg-slate-200 text-slate-700",
-    headerClass: "text-slate-700",
+    color: "#6f6a62",
+    badgeClass: "text-ink-soft border-hairline bg-hairline-soft",
   },
 };
 

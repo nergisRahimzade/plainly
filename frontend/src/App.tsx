@@ -86,13 +86,13 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#f6f5fb]">
+    <div className="flex h-screen w-screen overflow-hidden bg-paper">
       <div
-        className={`fixed inset-0 z-20 bg-black/30 sm:hidden ${isSidebarOpen ? "block" : "hidden"}`}
+        className={`fixed inset-0 z-20 bg-ink/20 backdrop-blur-[2px] sm:hidden ${isSidebarOpen ? "block" : "hidden"}`}
         onClick={() => setIsSidebarOpen(false)}
       />
       <div
-        className={`fixed inset-y-0 left-0 z-30 w-80 max-w-[85vw] transform transition-transform sm:static sm:z-auto sm:w-80 sm:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-30 w-80 max-w-[85vw] transform transition-transform duration-300 ease-out sm:static sm:z-auto sm:w-[21rem] sm:translate-x-0 ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -109,17 +109,17 @@ function App() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+        <div className="mx-auto max-w-2xl px-6 py-10 sm:px-12 sm:py-16">
           <button
-            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 sm:hidden"
+            className="mb-6 inline-flex items-center gap-2 rounded-full border border-hairline bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-soft transition-colors hover:border-accent-hairline hover:text-accent sm:hidden"
             onClick={() => setIsSidebarOpen((v) => !v)}
           >
-            {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {isSidebarOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
             History
           </button>
 
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <div className="mb-6 flex items-center gap-2 rounded-xl border border-brick/25 bg-brick-soft px-4 py-3 text-sm font-medium text-brick">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
@@ -127,13 +127,16 @@ function App() {
 
           {!selectedDoc || isAnalyzing ? (
             <>
-              <div className="mb-6 text-center sm:text-left">
-                <h2 className="text-3xl font-extrabold text-slate-900">
-                  Confused by something? <span className="text-violet-600">Upload it.</span>
+              <div className="mb-10">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-ink-faint">Plainly</p>
+                <h2 className="mt-3 font-serif text-4xl leading-[1.15] text-ink sm:text-[2.75rem]">
+                  Confused by something?
+                  <br />
+                  <span className="italic text-accent">Upload it.</span>
                 </h2>
-                <p className="mt-2 text-slate-500">
+                <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-soft">
                   Bills, error messages, legal fine print, insurance letters, forms — Plainly explains
-                  it in plain English, with the important stuff highlighted.
+                  it in plain English, with the important parts quietly highlighted.
                 </p>
               </div>
               <UploadZone onSelectImage={handleSelectImage} isAnalyzing={isAnalyzing} />
@@ -142,8 +145,8 @@ function App() {
             <DocumentCard document={selectedDoc} onOpenRelated={handleSelectDoc} />
           )}
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-slate-400 sm:justify-start">
-            <ShieldCheck className="h-4 w-4 shrink-0" />
+          <div className="mt-12 flex items-start gap-2 border-t border-hairline pt-6 text-xs leading-relaxed text-ink-faint">
+            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Plainly never stores account numbers, IDs, or other sensitive numbers — only what the
             document means.
           </div>

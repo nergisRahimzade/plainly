@@ -9,8 +9,16 @@ import type { PlainlyDocument, PlainlyDocumentPublic, RelatedDocRef } from "../t
 
 export const documentsRouter = Router();
 
-const RELATED_SCORE_THRESHOLD = 0.72;
+// Calibrated empirically with gemini-embedding-001: cosine similarity between
+// genuinely unrelated documents/queries still lands around 0.70-0.76 (shared
+// "this is a structured document" signal), while true matches land at 0.85+.
+// These thresholds sit in the gap between those two clusters.
+const RELATED_SCORE_THRESHOLD = 0.82;
 const MAX_RELATED = 3;
+// $vectorSearch always returns its nearest candidates even when none are actually
+// relevant, so we drop anything below this similarity score to avoid showing
+// unrelated documents as "matches" for a search query.
+const SEARCH_SCORE_THRESHOLD = 0.8;
 
 function requireUserId(req: Request, res: Response): string | null {
   const userId = (req.header("x-user-id") || req.query.userId || req.body?.userId) as
@@ -188,7 +196,9 @@ documentsRouter.get("/search", async (req: Request, res: Response) => {
       ])
       .toArray()) as (PlainlyDocument & { _id: ObjectId; score: number })[];
 
-    res.json(results.map((d) => toPublic(d)));
+    const matches = results.filter((r) => r.score >= SEARCH_SCORE_THRESHOLD);
+
+    res.json(matches.map((d) => toPublic(d)));
   } catch (err) {
     console.error("Error searching documents:", err);
     res.status(500).json({
