@@ -21,7 +21,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +36,8 @@
           "photosPermission": "Plainly needs access to your photos so you can upload a screenshot to explain.",
           "cameraPermission": "Plainly uses your camera to take a photo of a document to explain."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

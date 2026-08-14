@@ -51,3 +51,8 @@ export function searchDocuments(query: string) {
 export function deleteDocument(id: string) {
   return request<void>(`/api/documents/${id}`, { method: "DELETE" });
 }
+
+/** Seeds the current user's real history with curated example documents (real DB records). */
+export function seedExampleDocuments() {
+  return request<PlainlyDocumentPublic[]>("/api/documents/seed", { method: "POST" });
+}
