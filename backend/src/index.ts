@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { documentsRouter } from "./routes/documents.js";
+import { authRouter } from "./routes/auth.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -29,6 +30,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+app.use("/api/auth", authRouter);
 app.use("/api/documents", documentsRouter);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

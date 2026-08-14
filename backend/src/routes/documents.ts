@@ -6,6 +6,7 @@ import {
 } from "../db.js";
 import { analyzeScreenshot, embedText, findConnections } from "../gemini.js";
 import { SEED_DOCUMENTS } from "../seedData.js";
+import { resolveUserId } from "../auth.js";
 import type { PlainlyDocument, PlainlyDocumentPublic, RelatedDocRef } from "../types.js";
 
 export const documentsRouter = Router();
@@ -21,12 +22,12 @@ const MAX_RELATED = 3;
 // unrelated documents as "matches" for a search query.
 const SEARCH_SCORE_THRESHOLD = 0.8;
 
+// Accepts either a signed-in account (Authorization: Bearer <jwt>) or the legacy
+// anonymous x-user-id header, so guest history keeps working after login ships.
 function requireUserId(req: Request, res: Response): string | null {
-  const userId = (req.header("x-user-id") || req.query.userId || req.body?.userId) as
-    | string
-    | undefined;
-  if (!userId || typeof userId !== "string") {
-    res.status(400).json({ error: "Missing x-user-id header." });
+  const userId = resolveUserId(req);
+  if (!userId) {
+    res.status(400).json({ error: "Missing x-user-id header or Authorization bearer token." });
     return null;
   }
   return userId;

@@ -1,5 +1,5 @@
 import { MongoClient, Collection } from "mongodb";
-import type { PlainlyDocument } from "./types.js";
+import type { PlainlyDocument, User } from "./types.js";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "plainly";
@@ -11,6 +11,7 @@ if (!MONGODB_URI) {
 export const EMBEDDING_DIMENSIONS = 768;
 export const DOCUMENTS_COLLECTION = "documents";
 export const VECTOR_INDEX_NAME = "documents_vector_index";
+export const USERS_COLLECTION = "users";
 
 const client = new MongoClient(MONGODB_URI);
 let connected = false;
@@ -26,6 +27,11 @@ export async function getDb() {
 export async function getDocumentsCollection(): Promise<Collection<PlainlyDocument>> {
   const db = await getDb();
   return db.collection<PlainlyDocument>(DOCUMENTS_COLLECTION);
+}
+
+export async function getUsersCollection(): Promise<Collection<User>> {
+  const db = await getDb();
+  return db.collection<User>(USERS_COLLECTION);
 }
 
 export async function closeDb() {

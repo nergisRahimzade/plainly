@@ -14,6 +14,16 @@ export interface RelatedDocRef {
   createdAt: string;
 }
 
+export type AuthProvider = "password" | "google" | "apple";
+
+export interface UserPublic {
+  id: string;
+  email: string | null;
+  name?: string;
+  avatarUrl?: string;
+  provider: AuthProvider;
+}
+
 export interface PlainlyDocumentPublic {
   id: string;
   userId: string;

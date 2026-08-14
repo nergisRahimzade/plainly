@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
 import { ShieldCheck, AlertCircle } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../navigation/RootNavigator";
 import ScreenHeader from "../components/ScreenHeader";
 import Sidebar from "../components/Sidebar";
 import UploadZone from "../components/UploadZone";
 import DocumentDetail from "../components/DocumentDetail";
+import AccountSection from "../components/AccountSection";
 import {
   deleteDocument,
   getDocument,
@@ -17,7 +20,9 @@ import {
 import type { PlainlyDocumentPublic } from "../types";
 import { colors, fonts } from "../theme";
 
-export default function HomeScreen() {
+type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+
+export default function HomeScreen({ navigation }: Props) {
   const [documents, setDocuments] = useState<PlainlyDocumentPublic[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<PlainlyDocumentPublic | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -187,6 +192,14 @@ export default function HomeScreen() {
         onNewUpload={() => setSelectedDoc(null)}
         onAddExamples={handleAddExamples}
         isAddingExamples={isAddingExamples}
+        footer={
+          <AccountSection
+            onSignInPress={() => {
+              setIsSidebarOpen(false);
+              navigation.navigate("SignIn");
+            }}
+          />
+        }
       />
     </View>
   );

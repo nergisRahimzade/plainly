@@ -320,6 +320,20 @@ cp .env.example .env
 # then edit .env and fill in MONGODB_URI and GEMINI_API_KEY
 ```
 
+Accounts (email/password, Google, Apple) need a couple more variables in that same
+`.env`:
+
+- `JWT_SECRET` — any long random string, used to sign session tokens.
+- `GOOGLE_CLIENT_IDS` — comma-separated OAuth client ID(s) from
+  [Google Cloud Console](https://console.cloud.google.com/apis/credentials), one per
+  platform (Web/iOS/Android) you want "Continue with Google" to work on.
+- `APPLE_CLIENT_IDS` — your app's bundle id / Services ID(s) from the
+  [Apple Developer portal](https://developer.apple.com/account/resources/identifiers/list/serviceId),
+  comma-separated.
+
+Leaving `GOOGLE_CLIENT_IDS`/`APPLE_CLIENT_IDS` blank simply disables those sign-in
+options server-side (email/password accounts and guest/anonymous mode work regardless).
+
 Create the Atlas Vector Search index (run once):
 
 ```bash
@@ -365,6 +379,14 @@ Edit `.env` so `EXPO_PUBLIC_API_BASE_URL` points at a host your phone/emulator c
 - iOS simulator: `http://localhost:8080` works
 - Android emulator: `http://10.0.2.2:8080`
 - Physical device with Expo Go: your computer's LAN IP, e.g. `http://192.168.1.23:8080`
+
+To enable "Continue with Google" in the mobile app, also set
+`EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` /
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (see `.env.example`) — note this requires a custom
+dev/standalone build and will not complete inside plain Expo Go. "Continue with Apple"
+works out of the box on iOS devices/simulators once the app is built with the
+`expo-apple-authentication` plugin (already configured in `app.json`). Email/password
+sign-in and guest mode work everywhere with no extra setup.
 
 Then start Expo:
 
