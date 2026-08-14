@@ -124,6 +124,43 @@ request to scope a user's history to just their own uploads.
 All five document endpoints have been manually verified end-to-end against a live Atlas
 cluster and Gemini key (upload → list → fetch → semantic search → delete) and are working.
 
+### Accounts (`/api/auth`)
+
+Login is optional — every route above still accepts the legacy anonymous `x-user-id` header,
+so guest mode keeps working with zero changes. Signing in just gives a user a stable id
+(their Mongo `_id`) instead of a random per-install one, so their history follows them across
+devices/reinstalls. See `backend/src/auth.ts` and `backend/src/routes/auth.ts`.
+
+| Method & path | Purpose |
+|---|---|
+| `POST /api/auth/register` | Create an email/password account |
+| `POST /api/auth/login` | Email/password sign in |
+| `POST /api/auth/google` | Verify a Google ID token, sign in or create an account |
+| `POST /api/auth/apple` | Verify an Apple identity token, sign in or create an account |
+| `GET /api/auth/me` | Fetch the signed-in user from a bearer token |
+| `POST /api/auth/logout` | Stateless (the client just discards its token) |
+
+Every other route resolves the caller's id via `resolveUserId()`: an `Authorization: Bearer
+<jwt>` takes priority when present, falling back to `x-user-id` for guests.
+
+### Chat (`/api/chat`)
+
+A follow-up chat, separate from the one-shot upload analysis, so users can ask questions like
+*"why did I need to email the school's financial aid office?"* and get an answer grounded in
+their own document history. See `backend/src/routes/chat.ts` and `chatReply()` in `gemini.ts`.
+
+| Method & path | Purpose |
+|---|---|
+| `GET /api/chat` | List the user's conversations (title, last message, updated time) |
+| `GET /api/chat/:id` | Fetch one conversation's full message history |
+| `POST /api/chat` | Send a message (creates a new conversation if no `conversationId` is given) |
+| `DELETE /api/chat/:id` | Delete a conversation |
+
+Each `POST /api/chat` embeds the incoming message and runs the same `$vectorSearch` used for
+document search, scoped to that user, to pull in relevant past documents as grounding context
+before asking Gemini to reply — so answers can reference specifics from something the user
+uploaded weeks ago instead of only the current conversation.
+
 ---
 
 ## Frontend layer
@@ -151,7 +188,12 @@ that `App.tsx` just toggles between two views: the upload screen and the selecte
 
 The mobile app (`mobile/`) mirrors this structure (`types.ts`, `lib/userId.ts` using
 `AsyncStorage` instead of `localStorage`, `lib/api.ts`, `lib/docTypeMeta.ts`) against the
-exact same backend API, so both clients stay in sync with zero backend changes.
+exact same backend API, so both clients stay in sync with zero backend changes. It now also
+shares the web app's design system (`mobile/src/theme.ts`) and adds screens the web app
+doesn't have yet: `SignInScreen`/`SignUpScreen` (email/password + Google/Apple), and
+`ChatScreen` — a dedicated chat page (reachable from Home's header) with its own
+conversation-history sidebar (`ChatSidebar.tsx`) and message bubbles (`ChatBubble.tsx`) that
+surface which past documents were used as context for a given reply.
 
 ---
 

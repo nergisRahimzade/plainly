@@ -38,3 +38,27 @@ export interface PlainlyDocumentPublic {
   createdAt: string;
   score?: number;
 }
+
+export type ChatRole = "user" | "model";
+
+export interface ChatMessagePublic {
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+  contextDocs?: RelatedDocRef[];
+}
+
+export interface ConversationPublic {
+  id: string;
+  title: string;
+  messages: ChatMessagePublic[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationSummaryPublic {
+  id: string;
+  title: string;
+  lastMessage: string;
+  updatedAt: string;
+}

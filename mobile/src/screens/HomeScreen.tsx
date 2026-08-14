@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, ScrollView } from "react-native";
-import { ShieldCheck, AlertCircle } from "lucide-react-native";
+import { View, Text, StyleSheet, Alert, ScrollView, Pressable } from "react-native";
+import { ShieldCheck, AlertCircle, MessageCircle } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -139,6 +139,11 @@ export default function HomeScreen({ navigation }: Props) {
         showBack={!!selectedDoc}
         onBackPress={() => setSelectedDoc(null)}
         title={selectedDoc ? undefined : "Plainly"}
+        right={
+          <Pressable style={styles.chatButton} onPress={() => navigation.navigate("Chat")} hitSlop={8}>
+            <MessageCircle size={16} color={colors.ink} />
+          </Pressable>
+        }
       />
 
       {error && (
@@ -207,6 +212,16 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
+  chatButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
   body: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 48 },
   eyebrow: { fontFamily: fonts.sansSemiBold, fontSize: 11, letterSpacing: 2, color: colors.inkFaint },
   heading: { fontFamily: fonts.serifSemiBold, fontSize: 34, color: colors.ink, marginTop: 10, lineHeight: 40 },

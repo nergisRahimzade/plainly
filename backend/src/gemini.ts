@@ -13,6 +13,7 @@ const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const VISION_MODEL = "gemini-3.6-flash";
 const FAST_TEXT_MODEL = "gemini-3.5-flash-lite";
 const EMBEDDING_MODEL = "gemini-embedding-001";
+const CHAT_MODEL = "gemini-3.6-flash";
 
 const PRIVACY_RULE = `
 Privacy rule (must follow strictly): Never copy, repeat, or output full account numbers,
@@ -199,4 +200,52 @@ meaningful to say, return an empty array.
   } catch {
     return [];
   }
+}
+
+const CHAT_SYSTEM_PROMPT = `
+You are the Plainly chat assistant. Plainly already explained the user's confusing documents
+(bills, legal notices, forms, insurance letters, error messages, etc.) in plain English, and
+this chat is where the user can ask follow-up questions, get help deciding what to do next, or
+ask Plainly to recall something about a past document or a past conversation.
+
+${PRIVACY_RULE}
+
+You will be given relevant snippets retrieved from the user's document history and/or earlier
+conversations, labeled "Relevant context from your history". Use it naturally to answer -
+for example, if the user asks why they needed to do something, look for the reason in that
+context and explain it back to them plainly. If the context doesn't actually answer their
+question, say you're not sure rather than guessing or inventing details.
+
+Keep replies warm, concise, and practical - short paragraphs or a few bullet points, not an
+essay. Do not use markdown headers (#).
+`.trim();
+
+export interface ChatTurn {
+  role: "user" | "model";
+  content: string;
+}
+
+export async function chatReply(params: {
+  history: ChatTurn[];
+  message: string;
+  context: string[];
+}): Promise<string> {
+  const contextBlock =
+    params.context.length > 0
+      ? `Relevant context from your history:\n${params.context.map((c, i) => `${i + 1}. ${c}`).join("\n")}\n\n---\n\n`
+      : "";
+
+  const response = await ai.models.generateContent({
+    model: CHAT_MODEL,
+    contents: [
+      ...params.history.map((turn) => ({ role: turn.role, parts: [{ text: turn.content }] })),
+      { role: "user", parts: [{ text: `${contextBlock}${params.message}` }] },
+    ],
+    config: {
+      systemInstruction: CHAT_SYSTEM_PROMPT,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+    },
+  });
+
+  return response.text?.trim() || "Sorry, I couldn't come up with a response just now. Could you try rephrasing that?";
 }

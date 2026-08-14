@@ -1,4 +1,4 @@
-import type { PlainlyDocumentPublic, UserPublic } from "../types";
+import type { ConversationPublic, ConversationSummaryPublic, PlainlyDocumentPublic, UserPublic } from "../types";
 import { getUserId } from "./userId";
 import { getToken } from "./authStorage";
 
@@ -101,4 +101,23 @@ export function fetchCurrentUser() {
 
 export function logout() {
   return request<void>("/api/auth/logout", { method: "POST" });
+}
+
+export function listConversations() {
+  return request<ConversationSummaryPublic[]>("/api/chat");
+}
+
+export function getConversation(id: string) {
+  return request<ConversationPublic>(`/api/chat/${id}`);
+}
+
+export function sendChatMessage(message: string, conversationId?: string) {
+  return request<ConversationPublic>("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, conversationId }),
+  });
+}
+
+export function deleteConversation(id: string) {
+  return request<void>(`/api/chat/${id}`, { method: "DELETE" });
 }

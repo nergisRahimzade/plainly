@@ -76,3 +76,43 @@ export interface PlainlyDocumentPublic {
   createdAt: string;
   score?: number;
 }
+
+export type ChatRole = "user" | "model";
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: string;
+  createdAt: Date;
+  /** Document ids used as retrieved context for this reply (model messages only). */
+  contextDocumentIds?: string[];
+}
+
+export interface Conversation {
+  userId: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ChatMessagePublic {
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+  contextDocs?: RelatedDocRef[];
+}
+
+export interface ConversationPublic {
+  id: string;
+  title: string;
+  messages: ChatMessagePublic[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationSummaryPublic {
+  id: string;
+  title: string;
+  lastMessage: string;
+  updatedAt: string;
+}
