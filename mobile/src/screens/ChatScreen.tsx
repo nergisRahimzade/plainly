@@ -16,6 +16,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import ScreenHeader from "../components/ScreenHeader";
 import ChatSidebar from "../components/ChatSidebar";
 import ChatBubble from "../components/ChatBubble";
+import AccountSection from "../components/AccountSection";
 import {
   deleteConversation,
   getConversation,
@@ -198,6 +199,18 @@ export default function ChatScreen({ navigation }: Props) {
         onSelect={handleSelectConversation}
         onDelete={handleDeleteConversation}
         onNewChat={() => setActive(null)}
+        footer={
+          <AccountSection
+            onSignInPress={() => {
+              setIsSidebarOpen(false);
+              navigation.navigate("SignIn");
+            }}
+            onMemoriesPress={() => {
+              setIsSidebarOpen(false);
+              navigation.navigate("Memories");
+            }}
+          />
+        }
       />
     </View>
   );

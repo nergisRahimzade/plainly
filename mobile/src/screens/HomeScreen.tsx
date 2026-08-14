@@ -203,6 +203,10 @@ export default function HomeScreen({ navigation }: Props) {
               setIsSidebarOpen(false);
               navigation.navigate("SignIn");
             }}
+            onMemoriesPress={() => {
+              setIsSidebarOpen(false);
+              navigation.navigate("Memories");
+            }}
           />
         }
       />

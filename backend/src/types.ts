@@ -116,3 +116,24 @@ export interface ConversationSummaryPublic {
   lastMessage: string;
   updatedAt: string;
 }
+
+export type MemorySourceType = "document" | "chat";
+
+export interface Memory {
+  userId: string;
+  /** Short, standalone, plain-English fact worth recalling later (the "why" behind an action, a decision, a preference, etc.). */
+  content: string;
+  embedding: number[];
+  sourceType: MemorySourceType;
+  /** Id of the document or conversation this memory was extracted from, if any. */
+  sourceId?: string;
+  createdAt: Date;
+}
+
+export interface MemoryPublic {
+  id: string;
+  content: string;
+  sourceType: MemorySourceType;
+  sourceId?: string;
+  createdAt: string;
+}

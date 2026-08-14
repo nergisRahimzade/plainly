@@ -1,4 +1,10 @@
-import type { ConversationPublic, ConversationSummaryPublic, PlainlyDocumentPublic, UserPublic } from "../types";
+import type {
+  ConversationPublic,
+  ConversationSummaryPublic,
+  MemoryPublic,
+  PlainlyDocumentPublic,
+  UserPublic,
+} from "../types";
 import { getUserId } from "./userId";
 import { getToken } from "./authStorage";
 
@@ -120,4 +126,13 @@ export function sendChatMessage(message: string, conversationId?: string) {
 
 export function deleteConversation(id: string) {
   return request<void>(`/api/chat/${id}`, { method: "DELETE" });
+}
+
+/** What Plainly remembers about the user long-term (extracted from documents and chats). */
+export function listMemories() {
+  return request<MemoryPublic[]>("/api/memories");
+}
+
+export function deleteMemory(id: string) {
+  return request<void>(`/api/memories/${id}`, { method: "DELETE" });
 }

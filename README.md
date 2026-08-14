@@ -161,6 +161,29 @@ document search, scoped to that user, to pull in relevant past documents as grou
 before asking Gemini to reply — so answers can reference specifics from something the user
 uploaded weeks ago instead of only the current conversation.
 
+### Long-term memory (`/api/memories`)
+
+A regular chat's "memory" is just whatever messages are in that one thread — ask a brand new
+conversation *"why did I need to email the school's financial aid office?"* and it has nothing
+to go on. Plainly adds a second, cross-conversation memory: after every document upload and
+every chat reply, `extractMemories()` (in `gemini.ts`) reads what just happened and pulls out
+any short, standalone facts worth remembering long-term — especially the *reason* behind an
+action ("the user's FAFSA was flagged for verification, which is why they needed to email
+financial aid"). Each fact is embedded and stored in its own `memories` collection, scoped to
+the user, with its own Atlas Vector Search index (`memories_vector_index`, created by the same
+`npm run setup-index` script as the documents index).
+
+When answering a new chat message, `POST /api/chat` vector-searches *both* `documents` and
+`memories` for that user and folds whatever's relevant into the prompt as "Relevant context
+from your history" — so the assistant can answer using something extracted from a document
+uploaded weeks ago, or a completely different conversation, without either one being loaded
+into the current thread. Extraction runs **after** the response is already sent (see
+`memory.ts`), so it never adds latency to an upload or a chat reply.
+
+`GET /api/memories` / `DELETE /api/memories/:id` exist so users can see — and delete — exactly
+what's been remembered about them, in keeping with the app's privacy-first stance. In the
+mobile app this is the "What Plainly remembers" screen, linked from the sidebar.
+
 ---
 
 ## Frontend layer

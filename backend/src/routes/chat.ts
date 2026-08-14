@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getConversationsCollection, getDocumentsCollection, VECTOR_INDEX_NAME } from "../db.js";
 import { chatReply, embedText } from "../gemini.js";
 import { resolveUserId } from "../auth.js";
+import { retrieveRelevantMemories, saveMemoriesFromText } from "../memory.js";
 import type {
   ChatMessage,
   ChatMessagePublic,
@@ -20,6 +21,7 @@ export const chatRouter = Router();
 // rather than being genuinely relevant to the question being asked.
 const CONTEXT_SCORE_THRESHOLD = 0.75;
 const MAX_CONTEXT_DOCS = 4;
+const MAX_CONTEXT_MEMORIES = 5;
 const MAX_HISTORY_MESSAGES = 20;
 
 function requireUserId(req: Request, res: Response): string | null {
@@ -107,12 +109,15 @@ chatRouter.post("/", async (req: Request, res: Response) => {
       }
     }
 
-    // Retrieve documents relevant to this message via vector search, so the
-    // assistant can ground its answer in the user's actual history.
+    // Retrieve documents *and* long-term memories relevant to this message via
+    // vector search, so the assistant can ground its answer in the user's actual
+    // history — including reasons/context extracted from much earlier documents
+    // or conversations that aren't part of this thread's own message history.
     let contextDocIds: string[] = [];
     let contextSnippets: string[] = [];
+    let queryEmbedding: number[] | null = null;
     try {
-      const queryEmbedding = await embedText(trimmedMessage);
+      queryEmbedding = await embedText(trimmedMessage);
       const docsCollection = await getDocumentsCollection();
       const candidates = (await docsCollection
         .aggregate([
@@ -134,17 +139,24 @@ chatRouter.post("/", async (req: Request, res: Response) => {
       contextDocIds = relevant.map((d) => d._id.toString());
       contextSnippets = relevant.map(
         (d) =>
-          `[${d.docType}] "${d.title}" (uploaded ${d.createdAt.toISOString().slice(0, 10)}): ${d.summary} ${d.explanation}`
+          `[Document] "${d.title}" (${d.docType}, uploaded ${d.createdAt.toISOString().slice(0, 10)}): ${d.summary} ${d.explanation}`
       );
     } catch (err) {
-      console.warn("Chat context retrieval unavailable:", (err as Error).message);
+      console.warn("Chat document context retrieval unavailable:", (err as Error).message);
     }
+
+    let memorySnippets: string[] = [];
+    if (queryEmbedding) {
+      const memories = await retrieveRelevantMemories({ userId, queryEmbedding, limit: MAX_CONTEXT_MEMORIES });
+      memorySnippets = memories.map((m) => `[Remembered] ${m.content}`);
+    }
+    const contextForModel = [...contextSnippets, ...memorySnippets];
 
     const history = (convo?.messages ?? [])
       .slice(-MAX_HISTORY_MESSAGES)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const replyText = await chatReply({ history, message: trimmedMessage, context: contextSnippets });
+    const replyText = await chatReply({ history, message: trimmedMessage, context: contextForModel });
 
     const now = new Date();
     const userMsg: ChatMessage = { role: "user", content: trimmedMessage, createdAt: now };
@@ -176,6 +188,16 @@ chatRouter.post("/", async (req: Request, res: Response) => {
     }
 
     res.status(201).json(await toPublic(convo));
+
+    // Fire-and-forget: distill any long-term "why" facts from this exchange so
+    // a future conversation (possibly a brand new one) can recall them even
+    // without this thread's history loaded.
+    void saveMemoriesFromText({
+      userId,
+      sourceText: `User asked: ${trimmedMessage}\nAssistant replied: ${replyText}`,
+      sourceType: "chat",
+      sourceId: convo._id.toString(),
+    });
   } catch (err) {
     console.error("Error sending chat message:", err);
     res.status(500).json({ error: "Failed to get a reply. Please try again." });

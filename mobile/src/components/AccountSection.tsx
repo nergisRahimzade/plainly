@@ -1,17 +1,24 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import { LogOut, User as UserIcon } from "lucide-react-native";
+import { LogOut, User as UserIcon, Brain, ChevronRight } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import { colors, fonts, radii } from "../theme";
 
 interface AccountSectionProps {
   onSignInPress: () => void;
+  onMemoriesPress: () => void;
 }
 
-export default function AccountSection({ onSignInPress }: AccountSectionProps) {
+export default function AccountSection({ onSignInPress, onMemoriesPress }: AccountSectionProps) {
   const { user, isAuthenticated, signOut } = useAuth();
 
   return (
     <View style={styles.wrap}>
+      <Pressable style={({ pressed }) => [styles.memoriesRow, pressed && styles.pressed]} onPress={onMemoriesPress}>
+        <Brain size={14} color={colors.inkSoft} />
+        <Text style={styles.memoriesText}>What Plainly remembers</Text>
+        <ChevronRight size={13} color={colors.inkFaint} />
+      </Pressable>
+
       {isAuthenticated && user ? (
         <View style={styles.userRow}>
           <View style={styles.avatar}>
@@ -47,7 +54,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.hairline,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    gap: 10,
   },
+  memoriesRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
+  memoriesText: { flex: 1, fontFamily: fonts.sansMedium, fontSize: 13, color: colors.inkSoft },
   userRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   avatar: {
     width: 32,

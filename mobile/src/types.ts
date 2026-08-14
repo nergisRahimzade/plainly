@@ -62,3 +62,13 @@ export interface ConversationSummaryPublic {
   lastMessage: string;
   updatedAt: string;
 }
+
+export type MemorySourceType = "document" | "chat";
+
+export interface MemoryPublic {
+  id: string;
+  content: string;
+  sourceType: MemorySourceType;
+  sourceId?: string;
+  createdAt: string;
+}

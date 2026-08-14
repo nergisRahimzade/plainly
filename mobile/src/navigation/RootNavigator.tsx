@@ -3,12 +3,14 @@ import HomeScreen from "../screens/HomeScreen";
 import ChatScreen from "../screens/ChatScreen";
 import SignInScreen from "../screens/SignInScreen";
 import SignUpScreen from "../screens/SignUpScreen";
+import MemoriesScreen from "../screens/MemoriesScreen";
 
 export type RootStackParamList = {
   Home: undefined;
   Chat: undefined;
   SignIn: undefined;
   SignUp: undefined;
+  Memories: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -18,6 +20,7 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
+      <Stack.Screen name="Memories" component={MemoriesScreen} />
       <Stack.Group screenOptions={{ presentation: "modal" }}>
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />

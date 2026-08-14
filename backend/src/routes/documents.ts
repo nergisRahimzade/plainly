@@ -7,6 +7,7 @@ import {
 import { analyzeScreenshot, embedText, findConnections } from "../gemini.js";
 import { SEED_DOCUMENTS } from "../seedData.js";
 import { resolveUserId } from "../auth.js";
+import { saveMemoriesFromText } from "../memory.js";
 import type { PlainlyDocument, PlainlyDocumentPublic, RelatedDocRef } from "../types.js";
 
 export const documentsRouter = Router();
@@ -141,6 +142,17 @@ documentsRouter.post("/", async (req: Request, res: Response) => {
     res.status(201).json(
       toPublic({ ...doc, _id: insertResult.insertedId }, relatedRefs)
     );
+
+    // Fire-and-forget: extract any long-term "why" facts from this document
+    // (deadlines, reasons for action, decisions) so a much later chat can recall
+    // them even without this document in view. Runs after the response is sent
+    // so it never adds latency to the upload itself.
+    void saveMemoriesFromText({
+      userId,
+      sourceText: `Document: "${analysis.title}" (${analysis.docType})\nSummary: ${analysis.summary}\nExplanation: ${analysis.explanation}\nAction items: ${analysis.actionItems.join("; ")}\nRed flags: ${analysis.redFlags.join("; ")}`,
+      sourceType: "document",
+      sourceId: insertResult.insertedId.toString(),
+    });
   } catch (err) {
     console.error("Error analyzing document:", err);
     res.status(500).json({ error: "Failed to analyze the screenshot. Please try again." });

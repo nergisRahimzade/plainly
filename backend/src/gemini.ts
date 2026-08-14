@@ -249,3 +249,61 @@ export async function chatReply(params: {
 
   return response.text?.trim() || "Sorry, I couldn't come up with a response just now. Could you try rephrasing that?";
 }
+
+const memoriesResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    memories: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description:
+        "0-3 short, standalone, plain-English facts worth recalling in a future conversation - " +
+        "especially *why* the user needed to do something (a reason, a deadline, a decision they " +
+        "made or need to make). Each one must make sense entirely on its own, with no pronouns " +
+        "referring back to this conversation (e.g. write 'The user's landlord raised rent because " +
+        "of a lease renewal' not 'They raised it because of that'). Empty array if there's nothing " +
+        "worth remembering long-term.",
+    },
+  },
+  required: ["memories"],
+} as const;
+
+/**
+ * Extracts small, standalone "long-term memory" facts from a document analysis or chat
+ * exchange - in particular the *reasons* behind actions - so a much later conversation can
+ * recall them even without the original document or chat thread in its immediate context.
+ */
+export async function extractMemories(sourceText: string): Promise<string[]> {
+  const prompt = `
+You help Plainly (an assistant that explains confusing documents and answers follow-up
+questions about them) build a long-term memory of things worth recalling later.
+
+${PRIVACY_RULE}
+
+Read the following and extract any standalone facts worth remembering long-term, especially
+*why* the user needed or wanted to do something.
+
+---
+${sourceText}
+---
+`.trim();
+
+  const response = await ai.models.generateContent({
+    model: FAST_TEXT_MODEL,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: memoriesResponseSchema,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+    },
+  });
+
+  const text = response.text;
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text) as { memories: string[] };
+    return (parsed.memories ?? []).map((m) => m.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}

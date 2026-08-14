@@ -1,5 +1,5 @@
 import { MongoClient, Collection } from "mongodb";
-import type { Conversation, PlainlyDocument, User } from "./types.js";
+import type { Conversation, Memory, PlainlyDocument, User } from "./types.js";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "plainly";
@@ -13,6 +13,8 @@ export const DOCUMENTS_COLLECTION = "documents";
 export const VECTOR_INDEX_NAME = "documents_vector_index";
 export const USERS_COLLECTION = "users";
 export const CONVERSATIONS_COLLECTION = "conversations";
+export const MEMORIES_COLLECTION = "memories";
+export const MEMORIES_VECTOR_INDEX_NAME = "memories_vector_index";
 
 const client = new MongoClient(MONGODB_URI);
 let connected = false;
@@ -38,6 +40,11 @@ export async function getUsersCollection(): Promise<Collection<User>> {
 export async function getConversationsCollection(): Promise<Collection<Conversation>> {
   const db = await getDb();
   return db.collection<Conversation>(CONVERSATIONS_COLLECTION);
+}
+
+export async function getMemoriesCollection(): Promise<Collection<Memory>> {
+  const db = await getDb();
+  return db.collection<Memory>(MEMORIES_COLLECTION);
 }
 
 export async function closeDb() {
