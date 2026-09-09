@@ -3,17 +3,20 @@ import {
   SafeAreaView,
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
+  ScrollView,
   Alert,
+  useWindowDimensions,
   Platform,
+  StatusBar as RNStatusBar,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
+import { AlertCircle, Menu, ShieldCheck, X } from "lucide-react-native";
 import DocumentDetail from "./src/components/DocumentDetail";
-import HistoryList from "./src/components/HistoryList";
+import HistorySidebar from "./src/components/HistorySidebar";
+import UploadZone from "./src/components/UploadZone";
 import {
   deleteDocument,
   getDocument,
@@ -22,15 +25,19 @@ import {
   uploadDocument,
 } from "./src/lib/api";
 import type { PlainlyDocumentPublic } from "./src/types";
+import { colors, fonts, SIDEBAR_WIDTH, WIDE_BREAKPOINT, withAlpha } from "./src/theme";
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE_BREAKPOINT;
+
   const [documents, setDocuments] = useState<PlainlyDocumentPublic[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<PlainlyDocumentPublic | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     refreshHistory();
@@ -73,6 +80,7 @@ export default function App() {
       setSelectedDoc(doc);
       setDocuments((prev) => [doc, ...prev]);
       setIsSearchActive(false);
+      setIsSidebarOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong analyzing that image.");
     } finally {
@@ -81,12 +89,14 @@ export default function App() {
   }
 
   async function handleSelect(id: string) {
+    setError(null);
+    setIsSidebarOpen(false);
     const cached = documents.find((d) => d.id === id);
     if (cached) setSelectedDoc(cached);
     try {
       setSelectedDoc(await getDocument(id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not open that document.");
+      if (!cached) setError(err instanceof Error ? err.message : "Could not open that document.");
     }
   }
 
@@ -100,179 +110,229 @@ export default function App() {
     }
   }
 
-  async function handleSearch() {
-    if (!query.trim()) return;
+  async function handleSearch(query: string) {
     setIsSearchActive(true);
     setError(null);
     try {
-      setDocuments(await searchDocuments(query.trim()));
+      setDocuments(await searchDocuments(query));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
     }
   }
 
   function handleClearSearch() {
-    setQuery("");
     setIsSearchActive(false);
     refreshHistory();
   }
 
+  function handleNewUpload() {
+    setSelectedDoc(null);
+    setIsSidebarOpen(false);
+  }
+
+  const sidebar = (
+    <HistorySidebar
+      documents={documents}
+      selectedId={selectedDoc?.id ?? null}
+      onSelect={handleSelect}
+      onDelete={handleDelete}
+      onSearch={handleSearch}
+      onClearSearch={handleClearSearch}
+      isSearchActive={isSearchActive}
+      onNewUpload={handleNewUpload}
+      isLoading={isLoadingHistory}
+    />
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
+      <View style={styles.shell}>
+        {isWide && <View style={styles.permanentSidebar}>{sidebar}</View>}
 
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.logoDot}>
-            <Text style={{ fontSize: 16 }}>✨</Text>
-          </View>
-          <Text style={styles.logoText}>Plainly</Text>
-        </View>
-        {selectedDoc && (
-          <Pressable onPress={() => setSelectedDoc(null)}>
-            <Text style={styles.backLink}>← Back</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {selectedDoc ? (
-        <DocumentDetail document={selectedDoc} onOpenRelated={handleSelect} />
-      ) : (
-        <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          {isAnalyzing ? (
-            <View style={styles.analyzing}>
-              <ActivityIndicator size="large" color="#7c3aed" />
-              <Text style={styles.analyzingText}>Reading your screenshot…</Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.tagline}>
-                Confused by something? Snap or upload it — Plainly explains it in plain English.
-              </Text>
-
-              <View style={styles.actionsRow}>
-                <Pressable style={styles.primaryButton} onPress={() => handlePickImage(true)}>
-                  <Text style={styles.primaryButtonText}>📷 Take Photo</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={() => handlePickImage(false)}>
-                  <Text style={styles.secondaryButtonText}>🖼️ Choose Image</Text>
-                </Pressable>
-              </View>
-            </>
-          )}
-
-          <View style={styles.searchRow}>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search your past uploads…"
-              placeholderTextColor="#94a3b8"
-              style={styles.searchInput}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
-            />
-            {isSearchActive && (
-              <Pressable onPress={handleClearSearch} style={styles.clearButton}>
-                <Text style={styles.clearButtonText}>✕</Text>
+        <View style={styles.main}>
+          <ScrollView
+            contentContainerStyle={[styles.mainInner, isWide && styles.mainInnerWide]}
+            keyboardShouldPersistTaps="handled"
+          >
+            {!isWide && (
+              <Pressable
+                onPress={() => setIsSidebarOpen((v) => !v)}
+                style={({ pressed }) => [styles.historyBtn, pressed && styles.historyBtnPressed]}
+              >
+                {isSidebarOpen ? (
+                  <X size={14} color={colors.inkSoft} />
+                ) : (
+                  <Menu size={14} color={colors.inkSoft} />
+                )}
+                <Text style={styles.historyBtnText}>History</Text>
               </Pressable>
             )}
-          </View>
 
-          {isLoadingHistory ? (
-            <ActivityIndicator style={{ marginTop: 24 }} color="#7c3aed" />
-          ) : (
-            <HistoryList
-              documents={documents}
-              onSelect={handleSelect}
-              onDelete={handleDelete}
-              emptyMessage={
-                isSearchActive
-                  ? "No matches found."
-                  : "Your explained screenshots will show up here. Long-press an item to delete it."
-              }
-            />
-          )}
+            {error && (
+              <View style={styles.errorBox}>
+                <AlertCircle size={16} color={colors.brick} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-          <Text style={styles.privacyNote}>
-            🛡️ Plainly never stores account numbers, IDs, or other sensitive numbers — only what the
-            document means.
-          </Text>
+            {!selectedDoc || isAnalyzing ? (
+              <>
+                <View style={styles.hero}>
+                  <Text style={styles.kicker}>Plainly</Text>
+                  <Text style={styles.headline}>
+                    Confused by something?{"\n"}
+                    <Text style={styles.headlineAccent}>Upload it.</Text>
+                  </Text>
+                  <Text style={styles.lede}>
+                    Bills, error messages, legal fine print, insurance letters, forms — Plainly
+                    explains it in plain English, with the important parts quietly highlighted.
+                  </Text>
+                </View>
+                <UploadZone
+                  onPickCamera={() => handlePickImage(true)}
+                  onPickLibrary={() => handlePickImage(false)}
+                  isAnalyzing={isAnalyzing}
+                />
+              </>
+            ) : (
+              <DocumentDetail document={selectedDoc} onOpenRelated={handleSelect} />
+            )}
+
+            <View style={styles.privacy}>
+              <ShieldCheck size={14} color={colors.inkFaint} style={styles.privacyIcon} />
+              <Text style={styles.privacyText}>
+                Plainly never stores account numbers, IDs, or other sensitive numbers — only what
+                the document means.
+              </Text>
+            </View>
+          </ScrollView>
         </View>
-      )}
+
+        {!isWide && isSidebarOpen && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+            <Pressable style={styles.backdrop} onPress={() => setIsSidebarOpen(false)} />
+            <View style={[styles.drawer, { width: Math.min(SIDEBAR_WIDTH, width * 0.85) }]}>
+              {sidebar}
+            </View>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f6f5fb" },
-  header: {
+  safe: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    paddingTop: Platform.OS === "android" ? RNStatusBar.currentHeight ?? 0 : 0,
+  },
+  shell: { flex: 1, flexDirection: "row" },
+  permanentSidebar: {
+    width: SIDEBAR_WIDTH,
+    borderRightWidth: 1,
+    borderRightColor: colors.hairline,
+    backgroundColor: colors.surface,
+  },
+  main: { flex: 1 },
+  mainInner: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  mainInnerWide: {
+    maxWidth: 672,
+    width: "100%",
+    alignSelf: "center",
+    paddingHorizontal: 48,
+    paddingTop: 48,
+    paddingBottom: 64,
+  },
+  historyBtn: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 24,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  historyBtnPressed: { borderColor: colors.accentHairline },
+  historyBtnText: { fontSize: 14, fontWeight: "500", color: colors.inkSoft },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.brick, 0.25),
+    backgroundColor: colors.brickSoft,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logoDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: "#7c3aed",
-    alignItems: "center",
-    justifyContent: "center",
+  errorText: { flex: 1, fontSize: 14, fontWeight: "500", color: colors.brick },
+  hero: { marginBottom: 40 },
+  kicker: {
+    fontSize: 12,
+    fontWeight: "500",
+    letterSpacing: 3.2,
+    textTransform: "uppercase",
+    color: colors.inkFaint,
   },
-  logoText: { fontSize: 20, fontWeight: "800", color: "#0f172a" },
-  backLink: { fontSize: 14, fontWeight: "600", color: "#7c3aed" },
-  errorBox: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: "#fff1f2",
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#fecdd3",
+  headline: {
+    marginTop: 12,
+    fontFamily: fonts.serif,
+    fontSize: 34,
+    lineHeight: 40,
+    color: colors.ink,
   },
-  errorText: { color: "#be123c", fontSize: 13, fontWeight: "600" },
-  tagline: { fontSize: 15, color: "#475569", marginBottom: 14, lineHeight: 21 },
-  actionsRow: { flexDirection: "row", gap: 10, marginBottom: 18 },
-  primaryButton: {
-    flex: 1,
-    backgroundColor: "#7c3aed",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
+  headlineAccent: {
+    fontFamily: fonts.serif,
+    fontStyle: "italic",
+    color: colors.accent,
   },
-  primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  lede: {
+    marginTop: 16,
+    maxWidth: 420,
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.inkSoft,
   },
-  secondaryButtonText: { color: "#334155", fontWeight: "700", fontSize: 14 },
-  analyzing: { alignItems: "center", paddingVertical: 30, gap: 10 },
-  analyzingText: { fontSize: 14, color: "#64748b", fontWeight: "600" },
-  searchRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  searchInput: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === "ios" ? 12 : 8,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+  privacy: {
+    marginTop: 48,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
   },
-  clearButton: { marginLeft: -32, padding: 8 },
-  clearButtonText: { color: "#94a3b8", fontWeight: "700" },
-  privacyNote: { fontSize: 11, color: "#94a3b8", textAlign: "center", paddingVertical: 10 },
+  privacyIcon: { marginTop: 2 },
+  privacyText: { flex: 1, fontSize: 12, lineHeight: 18, color: colors.inkFaint },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: withAlpha(colors.ink, 0.2),
+    zIndex: 20,
+  },
+  drawer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: colors.surface,
+    borderRightWidth: 1,
+    borderRightColor: colors.hairline,
+    zIndex: 30,
+    elevation: 8,
+  },
 });
