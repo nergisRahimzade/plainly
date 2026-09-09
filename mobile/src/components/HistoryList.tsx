@@ -1,15 +1,24 @@
-import { FlatList, View, Text, Pressable, StyleSheet } from "react-native";
+import { FlatList, View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { Trash2 } from "lucide-react-native";
 import type { PlainlyDocumentPublic } from "../types";
 import { getDocTypeMeta } from "../lib/docTypeMeta";
+import { colors } from "../theme";
 
 interface HistoryListProps {
   documents: PlainlyDocumentPublic[];
+  selectedId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   emptyMessage: string;
 }
 
-export default function HistoryList({ documents, onSelect, onDelete, emptyMessage }: HistoryListProps) {
+export default function HistoryList({
+  documents,
+  selectedId,
+  onSelect,
+  onDelete,
+  emptyMessage,
+}: HistoryListProps) {
   if (documents.length === 0) {
     return (
       <View style={styles.emptyBox}>
@@ -22,15 +31,21 @@ export default function HistoryList({ documents, onSelect, onDelete, emptyMessag
     <FlatList
       data={documents}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={styles.list}
+      keyboardShouldPersistTaps="handled"
       renderItem={({ item }) => {
         const meta = getDocTypeMeta(item.docType);
+        const Icon = meta.icon;
+        const isSelected = item.id === selectedId;
         return (
-          <Pressable style={styles.row} onPress={() => onSelect(item.id)} onLongPress={() => onDelete(item.id)}>
-            <View style={[styles.iconWrap, { backgroundColor: meta.bg }]}>
-              <Text>{meta.emoji}</Text>
+          <Pressable
+            onPress={() => onSelect(item.id)}
+            style={[styles.row, isSelected && styles.rowSelected]}
+          >
+            <View style={styles.rowIcon}>
+              <Icon size={14} color={meta.color} strokeWidth={1.75} />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={styles.rowCopy}>
               <Text style={styles.rowTitle} numberOfLines={1}>
                 {item.title}
               </Text>
@@ -38,6 +53,19 @@ export default function HistoryList({ documents, onSelect, onDelete, emptyMessag
                 {item.summary}
               </Text>
             </View>
+            <Pressable
+              hitSlop={8}
+              onPress={() => {
+                Alert.alert("Delete this upload?", item.title, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Delete", style: "destructive", onPress: () => onDelete(item.id) },
+                ]);
+              }}
+              style={styles.trash}
+              accessibilityLabel="Delete"
+            >
+              <Trash2 size={14} color={colors.inkFaint} strokeWidth={1.75} />
+            </Pressable>
           </Pressable>
         );
       }}
@@ -46,18 +74,21 @@ export default function HistoryList({ documents, onSelect, onDelete, emptyMessag
 }
 
 const styles = StyleSheet.create({
+  list: { paddingBottom: 24, gap: 2 },
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    alignItems: "flex-start",
+    gap: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 14,
-    marginBottom: 4,
+    borderRadius: 8,
   },
-  iconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  rowTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  rowSubtitle: { fontSize: 12, color: "#94a3b8", marginTop: 1 },
-  emptyBox: { paddingVertical: 40, alignItems: "center" },
-  emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", paddingHorizontal: 24 },
+  rowSelected: { backgroundColor: colors.accentSoft },
+  rowIcon: { marginTop: 2 },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowTitle: { fontSize: 13.5, fontWeight: "500", color: colors.ink },
+  rowSubtitle: { fontSize: 12, color: colors.inkFaint, marginTop: 1 },
+  trash: { marginTop: 2, padding: 4 },
+  emptyBox: { paddingVertical: 40, paddingHorizontal: 12 },
+  emptyText: { fontSize: 14, lineHeight: 20, color: colors.inkFaint, textAlign: "center" },
 });
