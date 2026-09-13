@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Platform } from "react-native";
-import { Search, X, Plus } from "lucide-react-native";
-import type { PlainlyDocumentPublic } from "../types";
-import HistoryList from "./HistoryList";
-import { colors, fonts, SEARCH_DEBOUNCE_MS } from "../theme";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  FlatList,
+  Alert,
+} from "react-native";
+import { Search, X, Plus, Trash2 } from "lucide-react-native";
+import type { PlainlyDocumentPublic } from "./types";
+import { colors, fonts, getDocTypeMeta } from "./theme";
+
+const SEARCH_DEBOUNCE_MS = 1000;
 
 interface HistorySidebarProps {
   documents: PlainlyDocumentPublic[];
@@ -33,16 +44,17 @@ export default function HistorySidebar({
   onSearchRef.current = onSearch;
   const onClearSearchRef = useRef(onClearSearch);
   onClearSearchRef.current = onClearSearch;
+  const isSearchActiveRef = useRef(isSearchActive);
+  isSearchActiveRef.current = isSearchActive;
 
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      if (isSearchActive) onClearSearchRef.current();
+      if (isSearchActiveRef.current) onClearSearchRef.current();
       return;
     }
     const handle = setTimeout(() => onSearchRef.current(trimmed), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce on query only, matching web
   }, [query]);
 
   return (
@@ -91,15 +103,52 @@ export default function HistorySidebar({
       <View style={styles.listWrap}>
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />
+        ) : documents.length === 0 ? (
+          <Text style={styles.emptyText}>
+            {isSearchActive ? "No matches found." : "Your explained screenshots will show up here."}
+          </Text>
         ) : (
-          <HistoryList
-            documents={documents}
-            selectedId={selectedId}
-            onSelect={onSelect}
-            onDelete={onDelete}
-            emptyMessage={
-              isSearchActive ? "No matches found." : "Your explained screenshots will show up here."
-            }
+          <FlatList
+            data={documents}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => {
+              const meta = getDocTypeMeta(item.docType);
+              const Icon = meta.icon;
+              const isSelected = item.id === selectedId;
+              return (
+                <Pressable
+                  onPress={() => onSelect(item.id)}
+                  style={[styles.row, isSelected && styles.rowSelected]}
+                >
+                  <View style={styles.rowIcon}>
+                    <Icon size={14} color={meta.color} strokeWidth={1.75} />
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.rowSubtitle} numberOfLines={1}>
+                      {item.summary}
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => {
+                      Alert.alert("Delete this upload?", item.title, [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => onDelete(item.id) },
+                      ]);
+                    }}
+                    style={styles.trash}
+                    accessibilityLabel="Delete"
+                  >
+                    <Trash2 size={14} color={colors.inkFaint} strokeWidth={1.75} />
+                  </Pressable>
+                </Pressable>
+              );
+            }}
           />
         )}
       </View>
@@ -108,25 +157,10 @@ export default function HistorySidebar({
 }
 
 const styles = StyleSheet.create({
-  aside: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 20,
-  },
-  brand: {
-    fontFamily: fonts.serif,
-    fontSize: 24,
-    color: colors.ink,
-  },
-  tagline: {
-    marginTop: 4,
-    fontSize: 12,
-    color: colors.inkFaint,
-  },
+  aside: { flex: 1, backgroundColor: colors.surface },
+  header: { paddingHorizontal: 24, paddingTop: 28, paddingBottom: 20 },
+  brand: { fontFamily: fonts.serif, fontSize: 24, color: colors.ink },
+  tagline: { marginTop: 4, fontSize: 12, color: colors.inkFaint },
   newBtn: {
     marginTop: 20,
     flexDirection: "row",
@@ -163,9 +197,28 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.accent,
   },
-  listWrap: {
-    flex: 1,
+  listWrap: { flex: 1, paddingHorizontal: 12, paddingBottom: 24 },
+  list: { paddingBottom: 24, gap: 2 },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    paddingBottom: 24,
+    borderRadius: 8,
+  },
+  rowSelected: { backgroundColor: colors.accentSoft },
+  rowIcon: { marginTop: 2 },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowTitle: { fontSize: 13.5, fontWeight: "500", color: colors.ink },
+  rowSubtitle: { fontSize: 12, color: colors.inkFaint, marginTop: 1 },
+  trash: { marginTop: 2, padding: 4 },
+  emptyText: {
+    paddingVertical: 40,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.inkFaint,
+    textAlign: "center",
   },
 });

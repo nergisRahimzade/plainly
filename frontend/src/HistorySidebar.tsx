@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, X, Plus, Trash2, PlayCircle, Sparkles } from "lucide-react";
-import type { PlainlyDocumentPublic } from "../types";
-import { getDocTypeMeta } from "../lib/docTypeMeta";
+import { Search, X, Plus, Trash2 } from "lucide-react";
+import type { PlainlyDocumentPublic } from "./types";
+import { getDocTypeMeta } from "./docTypes";
 
 const SEARCH_DEBOUNCE_MS = 1000;
 
@@ -14,10 +14,6 @@ interface HistorySidebarProps {
   onClearSearch: () => void;
   isSearchActive: boolean;
   onNewUpload: () => void;
-  isDemoMode: boolean;
-  onToggleDemoMode: () => void;
-  onAddExamples: () => void;
-  isAddingExamples: boolean;
 }
 
 export default function HistorySidebar({
@@ -29,29 +25,23 @@ export default function HistorySidebar({
   onClearSearch,
   isSearchActive,
   onNewUpload,
-  isDemoMode,
-  onToggleDemoMode,
-  onAddExamples,
-  isAddingExamples,
 }: HistorySidebarProps) {
   const [query, setQuery] = useState("");
-
-  // Keep the latest callbacks in refs so the debounce effect only needs to
-  // depend on `query` itself, not on new function references from re-renders.
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
   const onClearSearchRef = useRef(onClearSearch);
   onClearSearchRef.current = onClearSearch;
+  const isSearchActiveRef = useRef(isSearchActive);
+  isSearchActiveRef.current = isSearchActive;
 
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      if (isSearchActive) onClearSearchRef.current();
+      if (isSearchActiveRef.current) onClearSearchRef.current();
       return;
     }
     const handle = setTimeout(() => onSearchRef.current(trimmed), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   return (
@@ -67,44 +57,6 @@ export default function HistorySidebar({
           <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
           New screenshot
         </button>
-
-        <button
-          onClick={onToggleDemoMode}
-          title="Demo mode works fully offline, with no live API calls — useful if wifi drops or you're out of API credits."
-          className={`mt-2.5 flex w-full items-center justify-between rounded-full border px-3.5 py-2 text-xs font-medium transition-colors ${
-            isDemoMode
-              ? "border-accent-hairline bg-accent-soft text-accent"
-              : "border-hairline text-ink-soft hover:border-accent-hairline hover:text-accent"
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            <PlayCircle className="h-3.5 w-3.5" />
-            Demo mode
-          </span>
-          <span
-            className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-              isDemoMode ? "bg-accent" : "bg-hairline"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-3 w-3 rounded-full bg-surface transition-transform ${
-                isDemoMode ? "translate-x-3.5" : "translate-x-0.5"
-              }`}
-            />
-          </span>
-        </button>
-
-        {!isDemoMode && (
-          <button
-            onClick={onAddExamples}
-            disabled={isAddingExamples}
-            title="Seeds your real history with a few curated example documents via the real backend — handy for a live demo when everything's working."
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full border border-dashed border-hairline px-3.5 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-accent-hairline hover:text-accent disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {isAddingExamples ? "Adding example documents…" : "Add example documents"}
-          </button>
-        )}
 
         <div className="relative mt-6">
           <Search className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" />
@@ -145,9 +97,7 @@ export default function HistorySidebar({
           <p className="px-3 py-10 text-center text-sm leading-relaxed text-ink-faint">
             {isSearchActive
               ? "No matches found."
-              : isDemoMode
-                ? "Your explained screenshots will show up here."
-                : 'Your explained screenshots will show up here — or click "Add example documents" above to try it out.'}
+              : "Your explained screenshots will show up here."}
           </p>
         )}
         <ul className="space-y-0.5">
@@ -169,7 +119,9 @@ export default function HistorySidebar({
                     strokeWidth={1.75}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-medium text-ink">{doc.title}</span>
+                    <span className="block truncate text-[13.5px] font-medium text-ink">
+                      {doc.title}
+                    </span>
                     <span className="block truncate text-xs text-ink-faint">{doc.summary}</span>
                   </span>
                   <span

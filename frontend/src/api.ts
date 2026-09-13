@@ -1,7 +1,16 @@
-import type { PlainlyDocumentPublic } from "../types";
-import { getUserId } from "./userId";
+import type { PlainlyDocumentPublic } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const USER_ID_KEY = "plainly_user_id";
+
+function getUserId(): string {
+  let id = localStorage.getItem(USER_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(USER_ID_KEY, id);
+  }
+  return id;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -19,7 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const body = await res.json();
       if (body?.error) message = body.error;
     } catch {
-      // ignore json parse errors
+      // keep the status message
     }
     throw new Error(message);
   }
@@ -49,9 +58,4 @@ export function searchDocuments(query: string) {
 
 export function deleteDocument(id: string) {
   return request<void>(`/api/documents/${id}`, { method: "DELETE" });
-}
-
-/** Seeds the current user's real history with curated example documents (real DB records). */
-export function seedExampleDocuments() {
-  return request<PlainlyDocumentPublic[]>("/api/documents/seed", { method: "POST" });
 }

@@ -1,6 +1,17 @@
 import { Platform } from "react-native";
+import {
+  Receipt,
+  Scale,
+  AlertTriangle,
+  ClipboardList,
+  ShieldCheck,
+  Globe,
+  FileQuestion,
+  type LucideIcon,
+} from "lucide-react-native";
+import type { DocType } from "./types";
 
-/** Visual tokens mirrored from frontend/src/index.css */
+/** Same tokens as frontend/src/index.css */
 export const colors = {
   paper: "#faf8f5",
   surface: "#ffffff",
@@ -15,22 +26,17 @@ export const colors = {
   brick: "#8c3a3a",
   brickSoft: "#f5e9e7",
   ochre: "#8a6a2f",
-  ochreSoft: "#f6f0e1",
 } as const;
 
-export const withAlpha = (hex: string, alpha: number) => {
+export function withAlpha(hex: string, alpha: number) {
   const n = hex.replace("#", "");
   const r = parseInt(n.slice(0, 2), 16);
   const g = parseInt(n.slice(2, 4), 16);
   const b = parseInt(n.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+}
 
-/**
- * Closest native stand-ins for the web's Inter / Fraunces pairing.
- * RN cannot load those webfonts without extra font assets; system serif
- * (Iowan Old Style / Palatino / Georgia) keeps the editorial contrast.
- */
+// System serif stands in for the web's Fraunces — RN would need bundled font files.
 export const fonts = {
   sans: Platform.select({ ios: "System", android: "sans-serif", default: "system-ui" }) as string,
   serif: Platform.select({
@@ -42,4 +48,35 @@ export const fonts = {
 
 export const SIDEBAR_WIDTH = 336;
 export const WIDE_BREAKPOINT = 640;
-export const SEARCH_DEBOUNCE_MS = 1000;
+
+export interface DocTypeMeta {
+  label: string;
+  icon: LucideIcon;
+  color: string;
+  badgeBg: string;
+  badgeBorder: string;
+}
+
+function badge(color: string): Pick<DocTypeMeta, "badgeBg" | "badgeBorder"> {
+  return { badgeBg: withAlpha(color, 0.06), badgeBorder: withAlpha(color, 0.25) };
+}
+
+const META: Record<DocType, DocTypeMeta> = {
+  bill: { label: "Bill", icon: Receipt, color: "#2f6b5e", ...badge("#2f6b5e") },
+  legal: { label: "Legal Document", icon: Scale, color: "#35415c", ...badge("#35415c") },
+  error: { label: "Error Message", icon: AlertTriangle, color: "#8c3a3a", ...badge("#8c3a3a") },
+  form: { label: "Form", icon: ClipboardList, color: "#8a6a2f", ...badge("#8a6a2f") },
+  insurance: { label: "Insurance", icon: ShieldCheck, color: "#3b5570", ...badge("#3b5570") },
+  website: { label: "Website", icon: Globe, color: "#6b4a6b", ...badge("#6b4a6b") },
+  other: {
+    label: "Document",
+    icon: FileQuestion,
+    color: colors.inkSoft,
+    badgeBg: colors.hairlineSoft,
+    badgeBorder: colors.hairline,
+  },
+};
+
+export function getDocTypeMeta(docType: DocType): DocTypeMeta {
+  return META[docType] ?? META.other;
+}

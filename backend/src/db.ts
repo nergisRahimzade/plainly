@@ -1,11 +1,11 @@
-import { MongoClient, Collection } from "mongodb";
+import { MongoClient, type Collection } from "mongodb";
 import type { PlainlyDocument } from "./types.js";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "plainly";
 
 if (!MONGODB_URI) {
-  throw new Error("Missing MONGODB_URI environment variable. Copy .env.example to .env and fill it in.");
+  throw new Error("Missing MONGODB_URI. Copy backend/.env.example to .env.");
 }
 
 export const EMBEDDING_DIMENSIONS = 768;
@@ -24,8 +24,7 @@ export async function getDb() {
 }
 
 export async function getDocumentsCollection(): Promise<Collection<PlainlyDocument>> {
-  const db = await getDb();
-  return db.collection<PlainlyDocument>(DOCUMENTS_COLLECTION);
+  return (await getDb()).collection<PlainlyDocument>(DOCUMENTS_COLLECTION);
 }
 
 export async function closeDb() {

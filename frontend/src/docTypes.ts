@@ -8,14 +8,12 @@ import {
   FileQuestion,
   type LucideIcon,
 } from "lucide-react";
-import type { DocType } from "../types";
+import type { DocType } from "./types";
 
 export interface DocTypeMeta {
   label: string;
   icon: LucideIcon;
-  /** Deep, muted color used for icon glyphs and small accents. */
   color: string;
-  /** Tailwind classes for a subtle outline badge in this doc type's color. */
   badgeClass: string;
 }
 
