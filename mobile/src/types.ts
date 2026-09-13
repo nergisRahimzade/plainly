@@ -14,6 +14,7 @@ export interface RelatedDocRef {
   createdAt: string;
 }
 
+/** Same shape the API returns (backend/src/types.ts → PlainlyDocumentPublic). */
 export interface PlainlyDocumentPublic {
   id: string;
   userId: string;

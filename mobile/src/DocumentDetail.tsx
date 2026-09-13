@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { AlertTriangle, CheckCircle2, Link2 } from "lucide-react-native";
-import type { PlainlyDocumentPublic } from "../types";
-import { getDocTypeMeta } from "../lib/docTypeMeta";
-import { colors, fonts, withAlpha } from "../theme";
+import type { PlainlyDocumentPublic } from "./types";
+import { colors, fonts, getDocTypeMeta, withAlpha } from "./theme";
 
 interface DocumentDetailProps {
   document: PlainlyDocumentPublic;
@@ -33,12 +32,7 @@ export default function DocumentDetail({ document, onOpenRelated }: DocumentDeta
   return (
     <View>
       <View style={styles.headerRow}>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: meta.badgeBg, borderColor: meta.badgeBorder },
-          ]}
-        >
+        <View style={[styles.badge, { backgroundColor: meta.badgeBg, borderColor: meta.badgeBorder }]}>
           <Icon size={12} color={meta.color} strokeWidth={2} />
           <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
         </View>
@@ -103,7 +97,13 @@ export default function DocumentDetail({ document, onOpenRelated }: DocumentDeta
             {document.actionItems.map((item, i) => {
               const isChecked = checkedItems.has(i);
               return (
-                <Pressable key={i} onPress={() => toggleItem(i)} style={styles.checkRow} accessibilityRole="checkbox" accessibilityState={{ checked: isChecked }}>
+                <Pressable
+                  key={i}
+                  onPress={() => toggleItem(i)}
+                  style={styles.checkRow}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isChecked }}
+                >
                   <View style={[styles.checkbox, isChecked && styles.checkboxOn]}>
                     {isChecked && <View style={styles.checkboxMark} />}
                   </View>
@@ -152,12 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-  },
+  badgeText: { fontSize: 11, fontWeight: "600", letterSpacing: 0.4, textTransform: "uppercase" },
   date: { fontSize: 12, color: colors.inkFaint },
   title: {
     marginTop: 16,
@@ -199,12 +194,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  calloutLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
+  calloutLabel: { fontSize: 12, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" },
   calloutList: { marginTop: 12, gap: 8 },
   connectionText: { fontSize: 14, fontWeight: "500", lineHeight: 20, color: colors.ink },
   flagRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
@@ -248,10 +238,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  checkboxOn: {
-    backgroundColor: colors.ochre,
-    borderColor: colors.ochre,
-  },
+  checkboxOn: { backgroundColor: colors.ochre, borderColor: colors.ochre },
   checkboxMark: {
     width: 7,
     height: 4,

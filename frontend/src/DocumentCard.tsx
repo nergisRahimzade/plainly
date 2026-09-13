@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { AlertTriangle, CheckCircle2, Link2 } from "lucide-react";
-import type { PlainlyDocumentPublic } from "../types";
-import { getDocTypeMeta } from "../lib/docTypeMeta";
+import type { PlainlyDocumentPublic } from "./types";
+import { getDocTypeMeta } from "./docTypes";
 
 interface DocumentCardProps {
   document: PlainlyDocumentPublic;
@@ -13,10 +13,8 @@ export default function DocumentCard({ document, onOpenRelated }: DocumentCardPr
   const meta = getDocTypeMeta(document.docType);
   const Icon = meta.icon;
   const date = new Date(document.createdAt);
-
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
 
-  // Reset the checklist whenever a different document is opened.
   useEffect(() => {
     setCheckedItems(new Set());
   }, [document.id]);
@@ -107,11 +105,7 @@ export default function DocumentCard({ document, onOpenRelated }: DocumentCardPr
                       onChange={() => toggleItem(i)}
                       className="mt-1 h-3.5 w-3.5 shrink-0 rounded-sm border-hairline accent-ochre"
                     />
-                    <span
-                      className={
-                        isChecked ? "text-ink-faint line-through decoration-2" : "text-ink"
-                      }
-                    >
+                    <span className={isChecked ? "text-ink-faint line-through decoration-2" : "text-ink"}>
                       {item}
                     </span>
                   </label>

@@ -7,6 +7,7 @@ export type DocType =
   | "website"
   | "other";
 
+/** Gemini vision output — also the text fields we persist. */
 export interface VisionAnalysis {
   docType: DocType;
   title: string;
@@ -24,6 +25,7 @@ export interface RelatedDocRef {
   createdAt: string;
 }
 
+/** What MongoDB stores. The raw image is never written here. */
 export interface PlainlyDocument {
   userId: string;
   docType: DocType;
@@ -39,6 +41,7 @@ export interface PlainlyDocument {
   createdAt: Date;
 }
 
+/** API response: embedding and keyEntities stay server-side. */
 export interface PlainlyDocumentPublic {
   id: string;
   userId: string;

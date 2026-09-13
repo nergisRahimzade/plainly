@@ -28,8 +28,7 @@ export default function UploadZone({ onSelectImage, isAnalyzing }: UploadZonePro
         setError("Please upload an image (screenshot) file.");
         return;
       }
-      const dataUrl = await readFileAsDataUrl(file);
-      onSelectImage(dataUrl, file.type);
+      onSelectImage(await readFileAsDataUrl(file), file.type);
     },
     [onSelectImage]
   );
@@ -78,7 +77,10 @@ export default function UploadZone({ onSelectImage, isAnalyzing }: UploadZonePro
       ) : (
         <>
           <div className="rounded-full border border-hairline bg-paper p-3.5 transition-colors duration-300 group-hover:border-accent-hairline">
-            <UploadCloud className="h-5 w-5 text-ink-soft transition-colors group-hover:text-accent" strokeWidth={1.5} />
+            <UploadCloud
+              className="h-5 w-5 text-ink-soft transition-colors group-hover:text-accent"
+              strokeWidth={1.5}
+            />
           </div>
           <div>
             <p className="text-[15px] font-medium text-ink">

@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { Camera, Image as ImageIcon, UploadCloud } from "lucide-react-native";
-import { colors, fonts } from "../theme";
+import { colors, fonts } from "./theme";
 
 interface UploadZoneProps {
   onPickCamera: () => void;
@@ -65,9 +65,7 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
   },
-  zoneAnalyzing: {
-    borderStyle: "solid",
-  },
+  zoneAnalyzing: { borderStyle: "solid" },
   iconCircle: {
     width: 48,
     height: 48,
@@ -98,12 +96,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     textAlign: "center",
   },
-  analyzingSub: {
-    marginTop: 4,
-    fontSize: 14,
-    color: colors.inkFaint,
-    textAlign: "center",
-  },
+  analyzingSub: { marginTop: 4, fontSize: 14, color: colors.inkFaint, textAlign: "center" },
   actions: {
     flexDirection: "row",
     flexWrap: "wrap",

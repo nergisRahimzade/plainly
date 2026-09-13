@@ -14,16 +14,16 @@ import {
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { AlertCircle, Menu, ShieldCheck, X } from "lucide-react-native";
-import DocumentDetail from "./src/components/DocumentDetail";
-import HistorySidebar from "./src/components/HistorySidebar";
-import UploadZone from "./src/components/UploadZone";
+import DocumentDetail from "./src/DocumentDetail";
+import HistorySidebar from "./src/HistorySidebar";
+import UploadZone from "./src/UploadZone";
 import {
   deleteDocument,
   getDocument,
   listDocuments,
   searchDocuments,
   uploadDocument,
-} from "./src/lib/api";
+} from "./src/api";
 import type { PlainlyDocumentPublic } from "./src/types";
 import { colors, fonts, SIDEBAR_WIDTH, WIDE_BREAKPOINT, withAlpha } from "./src/theme";
 
@@ -71,12 +71,10 @@ export default function App() {
 
     const asset = result.assets?.[0];
     if (result.canceled || !asset?.base64) return;
-    const base64 = asset.base64;
-    const mimeType = asset.mimeType || "image/jpeg";
 
     setIsAnalyzing(true);
     try {
-      const doc = await uploadDocument(base64, mimeType);
+      const doc = await uploadDocument(asset.base64, asset.mimeType || "image/jpeg");
       setSelectedDoc(doc);
       setDocuments((prev) => [doc, ...prev]);
       setIsSearchActive(false);
@@ -111,23 +109,13 @@ export default function App() {
   }
 
   async function handleSearch(query: string) {
-    setIsSearchActive(true);
     setError(null);
     try {
       setDocuments(await searchDocuments(query));
+      setIsSearchActive(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
     }
-  }
-
-  function handleClearSearch() {
-    setIsSearchActive(false);
-    refreshHistory();
-  }
-
-  function handleNewUpload() {
-    setSelectedDoc(null);
-    setIsSidebarOpen(false);
   }
 
   const sidebar = (
@@ -137,9 +125,15 @@ export default function App() {
       onSelect={handleSelect}
       onDelete={handleDelete}
       onSearch={handleSearch}
-      onClearSearch={handleClearSearch}
+      onClearSearch={() => {
+        setIsSearchActive(false);
+        refreshHistory();
+      }}
       isSearchActive={isSearchActive}
-      onNewUpload={handleNewUpload}
+      onNewUpload={() => {
+        setSelectedDoc(null);
+        setIsSidebarOpen(false);
+      }}
       isLoading={isLoadingHistory}
     />
   );
@@ -236,11 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   main: { flex: 1 },
-  mainInner: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
+  mainInner: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
   mainInnerWide: {
     maxWidth: 672,
     width: "100%",
@@ -292,18 +282,8 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     color: colors.ink,
   },
-  headlineAccent: {
-    fontFamily: fonts.serif,
-    fontStyle: "italic",
-    color: colors.accent,
-  },
-  lede: {
-    marginTop: 16,
-    maxWidth: 420,
-    fontSize: 15,
-    lineHeight: 24,
-    color: colors.inkSoft,
-  },
+  headlineAccent: { fontFamily: fonts.serif, fontStyle: "italic", color: colors.accent },
+  lede: { marginTop: 16, maxWidth: 420, fontSize: 15, lineHeight: 24, color: colors.inkSoft },
   privacy: {
     marginTop: 48,
     paddingTop: 24,
