@@ -68,9 +68,9 @@ function App() {
 
   const handleSearch = async (query: string) => {
     setError(null);
-    setIsSearchActive(true);
     try {
       setDocuments(await searchDocuments(query));
+      setIsSearchActive(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
     }

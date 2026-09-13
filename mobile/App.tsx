@@ -109,10 +109,10 @@ export default function App() {
   }
 
   async function handleSearch(query: string) {
-    setIsSearchActive(true);
     setError(null);
     try {
       setDocuments(await searchDocuments(query));
+      setIsSearchActive(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
     }
